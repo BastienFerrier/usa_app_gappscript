@@ -1,0 +1,103 @@
+<section id="page-access" class="app-page hidden">
+  <div class="page-header">
+    <div>
+      <h1>Accès</h1>
+
+      <p class="page-description">
+        Gestion des utilisateurs et des droits d'accès à l'application.
+      </p>
+    </div>
+
+    <button class="primary-button" onclick="openAccessModal()">
+      + Ajouter un utilisateur
+    </button>
+  </div>
+
+  <div class="access-card">
+    <div class="access-card-header">
+      <div>
+        <h2>Utilisateurs</h2>
+
+        <p>Comptes autorisés à accéder à l'application US Aussonne Basket.</p>
+      </div>
+    </div>
+
+    <div id="access-users" class="access-users">
+      Chargement des utilisateurs...
+    </div>
+  </div>
+
+  <!-- =========================
+       MODALE UTILISATEUR
+       ========================= -->
+
+  <div id="access-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h2 id="access-modal-title">Ajouter un utilisateur</h2>
+
+          <p>Définissez le compte et son niveau d'accès.</p>
+        </div>
+
+        <button class="modal-close" onclick="closeAccessModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-field">
+            <label for="access-prenom"> Prénom </label>
+
+            <input id="access-prenom" type="text" />
+          </div>
+
+          <div class="form-field">
+            <label for="access-nom"> Nom </label>
+
+            <input id="access-nom" type="text" />
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="access-email"> Adresse email Google </label>
+
+          <input id="access-email" type="email" placeholder="nom@gmail.com" />
+        </div>
+
+        <div class="form-field">
+          <label for="access-role"> Rôle </label>
+
+          <select id="access-role">
+            <option value="COACH">Coach</option>
+
+            <option value="BUREAU">Bureau</option>
+
+            <option value="ADMIN">Administrateur</option>
+          </select>
+        </div>
+
+        <label class="checkbox-field">
+          <input id="access-actif" type="checkbox" checked />
+
+          <span> Utilisateur actif </span>
+        </label>
+
+        <div id="access-form-error" class="form-error hidden"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="secondary-button" onclick="closeAccessModal()">
+          Annuler
+        </button>
+
+        <button
+          id="access-save-button"
+          class="primary-button"
+          onclick="saveAccessUserFromForm()"
+        >
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

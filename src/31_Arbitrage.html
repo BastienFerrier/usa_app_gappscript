@@ -1,0 +1,437 @@
+<div class="page-section arbitrage-page">
+  <!-- =========================
+       HEADER
+       ========================= -->
+
+  <div class="arbitrage-header">
+    <div>
+      <h1>Arbitrage</h1>
+
+      <div class="arbitrage-subtitle">
+        Gestion du vivier des arbitres du club et évaluation de leur niveau.
+      </div>
+    </div>
+
+    <button type="button" class="primary-button" onclick="showAddArbitreForm()">
+      + Ajouter un arbitre
+    </button>
+  </div>
+
+  <!-- =========================
+       INDICATEURS
+       ========================= -->
+
+  <div class="arbitrage-stats">
+    <div class="arbitrage-stat arbitrage-stat-primary">
+      <div class="arbitrage-stat-label">Vivier</div>
+
+      <div id="arbitrage-stat-total" class="arbitrage-stat-value">—</div>
+    </div>
+
+    <div class="arbitrage-stat">
+      <div class="arbitrage-stat-label">Évalués</div>
+
+      <div id="arbitrage-stat-evaluated" class="arbitrage-stat-value">—</div>
+    </div>
+
+    <div class="arbitrage-stat">
+      <div class="arbitrage-stat-label">Autonomes ou +</div>
+
+      <div id="arbitrage-stat-autonomous" class="arbitrage-stat-value">—</div>
+    </div>
+
+    <div class="arbitrage-stat">
+      <div class="arbitrage-stat-label">Extérieurs</div>
+
+      <div id="arbitrage-stat-external" class="arbitrage-stat-value">—</div>
+    </div>
+  </div>
+
+  <!-- =========================
+       LISTE / FILTRES
+       ========================= -->
+
+  <div class="arbitrage-list-card">
+    <!-- FILTRES -->
+
+    <div class="arbitrage-filters">
+      <div class="arbitrage-filter">
+        <label for="arbitrage-filter-type"> Type </label>
+
+        <select id="arbitrage-filter-type" onchange="filterArbitres()">
+          <option value="">Tous les types</option>
+
+          <option value="JOUEUR">Joueur</option>
+
+          <option value="CLUB">Club</option>
+
+          <option value="EXTERIEUR">Extérieur</option>
+        </select>
+      </div>
+
+      <div class="arbitrage-filter">
+        <label for="arbitrage-filter-categorie"> Catégorie </label>
+
+        <select id="arbitrage-filter-categorie" onchange="filterArbitres()">
+          <option value="">Toutes les catégories</option>
+        </select>
+      </div>
+
+      <div class="arbitrage-filter">
+        <label for="arbitrage-filter-niveau"> Niveau </label>
+
+        <select id="arbitrage-filter-niveau" onchange="filterArbitres()">
+          <option value="">Tous les niveaux</option>
+
+          <option value="NON_EVALUE">Non évalué</option>
+
+          <option value="DEBUTANT">Débutant</option>
+
+          <option value="APPRENTISSAGE">En apprentissage</option>
+
+          <option value="AUTONOME">Autonome</option>
+
+          <option value="CONFIRME">Confirmé</option>
+
+          <option value="REFERENT">Référent</option>
+        </select>
+      </div>
+
+      <div class="arbitrage-filter arbitrage-filter-search">
+        <label for="arbitrage-filter-search"> Recherche </label>
+
+        <input
+          id="arbitrage-filter-search"
+          type="text"
+          placeholder="Nom ou prénom..."
+          oninput="filterArbitres()"
+        />
+      </div>
+    </div>
+
+    <!-- RESUME -->
+
+    <div id="arbitrage-summary" class="arbitrage-summary"></div>
+
+    <!-- CHARGEMENT -->
+
+    <div id="arbitrage-loading" class="arbitrage-loading">Chargement...</div>
+
+    <!-- TABLEAU -->
+
+    <div
+      id="arbitrage-table-container"
+      class="arbitrage-table-container"
+      style="display: none"
+    >
+      <table class="arbitrage-table">
+        <thead>
+          <tr>
+            <th>Arbitre</th>
+
+            <th>Type</th>
+
+            <th>Catégorie</th>
+
+            <th>Licence FFBB</th>
+
+            <th>Niveau d'arbitrage</th>
+          </tr>
+        </thead>
+
+        <tbody id="arbitrage-table-body"></tbody>
+      </table>
+    </div>
+
+    <!-- VIDE -->
+
+    <div id="arbitrage-empty" class="arbitrage-empty" style="display: none">
+      Aucun arbitre trouvé.
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODALE AJOUT ARBITRE
+       ============================================================ -->
+
+  <div
+    id="arbitrage-add-form"
+    class="arbitrage-modal-overlay"
+    onclick="handleArbitreAddOverlayClick(event)"
+  >
+    <div class="arbitrage-modal">
+      <!-- HEADER -->
+
+      <div class="arbitrage-modal-header">
+        <div>
+          <div class="arbitrage-modal-eyebrow">Nouveau</div>
+
+          <div class="arbitrage-modal-title">Ajouter un arbitre</div>
+        </div>
+
+        <button
+          type="button"
+          class="arbitrage-modal-close"
+          onclick="hideAddArbitreForm()"
+          aria-label="Fermer"
+        >
+          ×
+        </button>
+      </div>
+
+      <!-- CONTENU -->
+
+      <div class="arbitrage-modal-body">
+        <!-- TYPE + NIVEAU -->
+
+        <div class="arbitrage-modal-grid">
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-add-type"> Type * </label>
+
+            <select id="arbitrage-add-type">
+              <option value="CLUB">Club</option>
+
+              <option value="EXTERIEUR">Extérieur</option>
+            </select>
+          </div>
+
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-add-niveau"> Niveau </label>
+
+            <select id="arbitrage-add-niveau">
+              <option value="">Non évalué</option>
+
+              <option value="DEBUTANT">Débutant</option>
+
+              <option value="APPRENTISSAGE">En apprentissage</option>
+
+              <option value="AUTONOME">Autonome</option>
+
+              <option value="CONFIRME">Confirmé</option>
+
+              <option value="REFERENT">Référent</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- PRENOM + NOM -->
+
+        <div class="arbitrage-modal-grid">
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-add-prenom"> Prénom * </label>
+
+            <input id="arbitrage-add-prenom" type="text" autocomplete="off" />
+          </div>
+
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-add-nom"> Nom * </label>
+
+            <input id="arbitrage-add-nom" type="text" autocomplete="off" />
+          </div>
+        </div>
+
+        <!-- EMAIL + TELEPHONE -->
+
+        <div class="arbitrage-modal-grid">
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-add-email"> Email </label>
+
+            <input id="arbitrage-add-email" type="email" autocomplete="off" />
+          </div>
+
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-add-telephone"> Téléphone </label>
+
+            <input id="arbitrage-add-telephone" type="tel" autocomplete="off" />
+          </div>
+        </div>
+
+        <!-- COMMENTAIRE -->
+
+        <div class="arbitrage-modal-field">
+          <label for="arbitrage-add-commentaire"> Commentaire </label>
+
+          <textarea id="arbitrage-add-commentaire" rows="4"></textarea>
+        </div>
+
+        <!-- MESSAGE -->
+
+        <div id="arbitrage-add-message" class="arbitrage-modal-message"></div>
+
+        <!-- ACTIONS -->
+
+        <div class="arbitrage-modal-footer">
+          <div></div>
+
+          <div class="arbitrage-modal-actions">
+            <button
+              type="button"
+              class="secondary-button"
+              onclick="hideAddArbitreForm()"
+            >
+              Annuler
+            </button>
+
+            <button
+              id="arbitrage-add-submit"
+              type="button"
+              class="primary-button"
+              onclick="submitAddArbitre()"
+            >
+              Ajouter
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODALE EDITION ARBITRE
+       ============================================================ -->
+
+  <div
+    id="arbitrage-edit-overlay"
+    class="arbitrage-modal-overlay"
+    onclick="handleArbitreEditOverlayClick(event)"
+  >
+    <div id="arbitrage-edit-modal" class="arbitrage-modal">
+      <!-- HEADER -->
+
+      <div class="arbitrage-modal-header">
+        <div>
+          <div class="arbitrage-modal-eyebrow">Fiche arbitre</div>
+
+          <div id="arbitrage-edit-title" class="arbitrage-modal-title"></div>
+        </div>
+
+        <button
+          type="button"
+          class="arbitrage-modal-close"
+          onclick="closeArbitreEdit()"
+          aria-label="Fermer"
+        >
+          ×
+        </button>
+      </div>
+
+      <!-- CONTENU -->
+
+      <div class="arbitrage-modal-body">
+        <input id="arbitrage-edit-id" type="hidden" />
+
+        <!-- TYPE + NIVEAU -->
+
+        <div class="arbitrage-modal-grid">
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-edit-type"> Type * </label>
+
+            <select id="arbitrage-edit-type">
+              <option value="CLUB">Club</option>
+
+              <option value="EXTERIEUR">Extérieur</option>
+            </select>
+          </div>
+
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-edit-niveau"> Niveau </label>
+
+            <select id="arbitrage-edit-niveau">
+              <option value="">Non évalué</option>
+
+              <option value="DEBUTANT">Débutant</option>
+
+              <option value="APPRENTISSAGE">En apprentissage</option>
+
+              <option value="AUTONOME">Autonome</option>
+
+              <option value="CONFIRME">Confirmé</option>
+
+              <option value="REFERENT">Référent</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- PRENOM + NOM -->
+
+        <div class="arbitrage-modal-grid">
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-edit-prenom"> Prénom * </label>
+
+            <input id="arbitrage-edit-prenom" type="text" autocomplete="off" />
+          </div>
+
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-edit-nom"> Nom * </label>
+
+            <input id="arbitrage-edit-nom" type="text" autocomplete="off" />
+          </div>
+        </div>
+
+        <!-- EMAIL + TELEPHONE -->
+
+        <div class="arbitrage-modal-grid">
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-edit-email"> Email </label>
+
+            <input id="arbitrage-edit-email" type="email" autocomplete="off" />
+          </div>
+
+          <div class="arbitrage-modal-field">
+            <label for="arbitrage-edit-telephone"> Téléphone </label>
+
+            <input
+              id="arbitrage-edit-telephone"
+              type="tel"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+
+        <!-- COMMENTAIRE -->
+
+        <div class="arbitrage-modal-field">
+          <label for="arbitrage-edit-commentaire"> Commentaire </label>
+
+          <textarea id="arbitrage-edit-commentaire" rows="4"></textarea>
+        </div>
+
+        <!-- MESSAGE -->
+
+        <div id="arbitrage-edit-message" class="arbitrage-modal-message"></div>
+
+        <!-- ACTIONS -->
+
+        <div class="arbitrage-modal-footer">
+          <button
+            id="arbitrage-edit-delete"
+            type="button"
+            class="arbitrage-delete-button"
+            onclick="deleteArbitreFromUI()"
+          >
+            Supprimer l'arbitre
+          </button>
+
+          <div class="arbitrage-modal-actions">
+            <button
+              type="button"
+              class="secondary-button"
+              onclick="closeArbitreEdit()"
+            >
+              Annuler
+            </button>
+
+            <button
+              id="arbitrage-edit-save"
+              type="button"
+              class="primary-button"
+              onclick="saveArbitreEdit()"
+            >
+              Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

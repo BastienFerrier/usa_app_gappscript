@@ -1,0 +1,4588 @@
+<script>
+  /* =========================
+   CONFIGURATION PLANNING
+   ========================= */
+
+  const days = [
+    "Lundi",
+    "Mardi",
+    "Mercredi",
+    "Jeudi",
+    "Vendredi",
+    "Samedi",
+    "Dimanche",
+  ];
+
+  const startHour = 7;
+
+  const endHour = 24;
+
+  const pixelsPerHour = 60;
+
+  let planningData = null;
+
+  let selectedGym = null;
+
+  /* =========================
+   SIDEBAR
+   ========================= */
+
+  const SIDEBAR_STORAGE_KEY = "usab-sidebar-collapsed";
+
+  /**
+   * Initialise la sidebar.
+   */
+  function initializeSidebar() {
+    const collapsed = localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true";
+
+    setSidebarCollapsed(collapsed, false);
+  }
+
+  /**
+   * Réduit ou développe
+   * la sidebar.
+   */
+  function toggleSidebar() {
+    const collapsed = !document.body.classList.contains("sidebar-collapsed");
+
+    setSidebarCollapsed(collapsed, true);
+  }
+
+  /**
+   * Applique l'état.
+   */
+  function setSidebarCollapsed(collapsed, save) {
+    document.body.classList.toggle("sidebar-collapsed", collapsed);
+
+    const button = document.getElementById("sidebar-toggle");
+
+    if (button) {
+      button.textContent = collapsed ? "›" : "‹";
+
+      const label = collapsed ? "Développer le menu" : "Réduire le menu";
+
+      button.title = label;
+
+      button.setAttribute("aria-label", label);
+    }
+
+    if (save) {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(collapsed));
+    }
+  }
+
+  /**
+   * Initialise l'état mémorisé.
+   */
+  document.addEventListener("DOMContentLoaded", initializeSidebar);
+
+  /* =========================
+   NAVIGATION
+   ========================= */
+
+  function navigateTo(page) {
+    if (currentUser && !currentUser.authorized) {
+      return;
+    }
+
+    /*
+     * La page Accès est réservée
+     * aux administrateurs.
+     */
+    if (page === "access" && (!currentUser || currentUser.role !== "ADMIN")) {
+      return;
+    }
+
+    /*
+     * Cache toutes les pages.
+     */
+
+    document.querySelectorAll(".app-page").forEach((element) => {
+      element.classList.add("hidden");
+    });
+
+    /*
+     * Affiche la page demandée.
+     */
+
+    const target = document.getElementById("page-" + page);
+
+    if (target) {
+      target.classList.remove("hidden");
+    }
+
+    /*
+     * Met à jour le menu.
+     */
+
+    document.querySelectorAll(".menu-item").forEach((element) => {
+      element.classList.remove("active");
+    });
+
+    const menuItem = document.querySelector('[data-page="' + page + '"]');
+
+    if (menuItem) {
+      menuItem.classList.add("active");
+    }
+
+    /*
+     * Chargement page Accès.
+     */
+
+    if (page === "access" && !accessUsersLoaded) {
+      loadAccessUsers();
+    }
+
+    /*
+     * Chargement page Adhésions.
+     */
+
+    if (page === "adhesions") {
+      loadAdhesions();
+    }
+    /*
+     * Chargement page Arbitrage.
+     */
+
+    if (page === "arbitrage") {
+      loadArbitrage();
+    }
+  }
+
+  /* =========================
+   CHARGEMENT PLANNING
+   ========================= */
+
+  google.script.run
+
+    .withSuccessHandler(initializePlanning)
+
+    .withFailureHandler(showPlanningError)
+
+    .getPlanningData();
+
+  /* =========================
+   INITIALISATION PLANNING
+   ========================= */
+
+  function initializePlanning(data) {
+    planningData = data;
+
+    const gyms = data.gymnases;
+
+    const select = document.getElementById("gymSelect");
+
+    select.innerHTML = "";
+
+    gyms.forEach((gym) => {
+      const option = document.createElement("option");
+
+      option.value = gym.reference;
+
+      option.textContent = gym.nom;
+
+      select.appendChild(option);
+    });
+
+    if (gyms.length > 0) {
+      selectedGym = gyms[0].reference;
+
+      select.value = selectedGym;
+    }
+
+    buildPlanning(planningData);
+  }
+
+  /* =========================
+   CHANGEMENT GYMNASE
+   ========================= */
+
+  function changeGym() {
+    selectedGym = document.getElementById("gymSelect").value;
+
+    buildPlanning(planningData);
+  }
+
+  /* =========================
+   CONSTRUCTION PLANNING
+   ========================= */
+
+  function buildPlanning(data) {
+    const container = document.getElementById("planning");
+
+    container.innerHTML = "";
+
+    const planning = document.createElement("div");
+
+    planning.className = "planning";
+
+    /*
+     * Coin supérieur gauche.
+     */
+
+    const corner = document.createElement("div");
+
+    corner.className = "corner";
+
+    planning.appendChild(corner);
+
+    /*
+     * Jours.
+     */
+
+    days.forEach((day) => {
+      const header = document.createElement("div");
+
+      header.className = "header";
+
+      header.textContent = day;
+
+      planning.appendChild(header);
+    });
+
+    /*
+     * Colonne heures.
+     */
+
+    const hours = document.createElement("div");
+
+    for (let hour = startHour; hour < endHour; hour++) {
+      const hourDiv = document.createElement("div");
+
+      hourDiv.className = "hour";
+
+      hourDiv.textContent = String(hour).padStart(2, "0") + ":00";
+
+      hours.appendChild(hourDiv);
+    }
+
+    planning.appendChild(hours);
+
+    /*
+     * Colonnes jours.
+     */
+
+    days.forEach((day) => {
+      const column = document.createElement("div");
+
+      column.className = "day";
+
+      /*
+       * Lignes horaires.
+       */
+
+      for (let hour = startHour; hour <= endHour; hour++) {
+        const line = document.createElement("div");
+
+        line.className = "hour-line";
+
+        line.style.top = (hour - startHour) * pixelsPerHour + "px";
+
+        column.appendChild(line);
+      }
+
+      /*
+       * Disponibilités.
+       */
+
+      data.disponibilites
+
+        .filter((item) => item.jour === day && item.lieu === selectedGym)
+
+        .forEach((item) => {
+          const block = document.createElement("div");
+
+          block.className = "availability";
+
+          positionBlock(block, item.debut, item.fin);
+
+          column.appendChild(block);
+        });
+
+      /*
+       * Entraînements.
+       */
+
+      data.entrainements
+
+        .filter((item) => item.jour === day && item.lieu === selectedGym)
+
+        .forEach((item) => {
+          const block = document.createElement("div");
+
+          block.className = "training";
+
+          positionBlock(block, item.debut, item.fin);
+
+          /*
+           * Couleur équipe.
+           */
+
+          const couleurEquipe = data.couleursEquipes.find(
+            (couleur) => couleur.equipe === item.equipe,
+          );
+
+          if (couleurEquipe) {
+            if (couleurEquipe.couleurFond) {
+              block.style.backgroundColor = couleurEquipe.couleurFond;
+            }
+
+            if (couleurEquipe.couleurTexte) {
+              block.style.color = couleurEquipe.couleurTexte;
+            }
+          }
+
+          /*
+           * Entraîneur.
+           */
+
+          const entraineur = getEntraineur(data, item.entraineur);
+
+          let blockContent =
+            item.reference +
+            "<br>" +
+            formatTime(item.debut) +
+            " - " +
+            formatTime(item.fin);
+
+          if (entraineur) {
+            blockContent +=
+              '<div class="training-coach">' +
+              formatEntraineurName(entraineur) +
+              "</div>";
+          }
+
+          block.innerHTML = blockContent;
+
+          column.appendChild(block);
+        });
+
+      planning.appendChild(column);
+    });
+
+    container.appendChild(planning);
+
+    buildSummary(data);
+  }
+
+  /* =========================
+   POSITION BLOCS
+   ========================= */
+
+  function positionBlock(element, start, end) {
+    const calendarStart = startHour * 60;
+
+    const top = ((start - calendarStart) / 60) * pixelsPerHour;
+
+    const height = ((end - start) / 60) * pixelsPerHour;
+
+    element.style.top = top + "px";
+
+    element.style.height = height + "px";
+  }
+
+  /* =========================
+   FORMAT HEURE
+   ========================= */
+
+  function formatTime(minutes) {
+    if (minutes === 1440) {
+      return "00:00";
+    }
+
+    const hour = Math.floor(minutes / 60);
+
+    const minute = minutes % 60;
+
+    return (
+      String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0")
+    );
+  }
+
+  /* =========================
+   FORMAT DUREE
+   ========================= */
+
+  function formatDuration(minutes) {
+    const hours = Math.floor(minutes / 60);
+
+    const remainingMinutes = minutes % 60;
+
+    if (remainingMinutes === 0) {
+      return hours + "h";
+    }
+
+    return hours + "h" + String(remainingMinutes).padStart(2, "0");
+  }
+
+  /* =========================
+   ENTRAINEURS
+   ========================= */
+
+  function getEntraineur(data, reference) {
+    if (!reference) {
+      return null;
+    }
+
+    return (
+      data.entraineurs.find(
+        (entraineur) => entraineur.reference === reference,
+      ) || null
+    );
+  }
+
+  function formatEntraineurName(entraineur) {
+    if (!entraineur) {
+      return "";
+    }
+
+    return [entraineur.prenom, entraineur.nom]
+
+      .filter(Boolean)
+
+      .join(" ");
+  }
+
+  /* =========================
+   STATISTIQUES
+   ========================= */
+
+  function buildSummary(data) {
+    const summary = document.getElementById("summary");
+
+    const totalsEquipes = {};
+
+    const totalsEntraineurs = {};
+
+    data.entrainements.forEach((item) => {
+      const durationMinutes = item.fin - item.debut;
+
+      /*
+       * Equipes.
+       */
+
+      if (item.equipe) {
+        if (!totalsEquipes[item.equipe]) {
+          totalsEquipes[item.equipe] = 0;
+        }
+
+        totalsEquipes[item.equipe] += durationMinutes;
+      }
+
+      /*
+       * Entraîneurs.
+       */
+
+      if (item.entraineur) {
+        if (!totalsEntraineurs[item.entraineur]) {
+          totalsEntraineurs[item.entraineur] = 0;
+        }
+
+        totalsEntraineurs[item.entraineur] += durationMinutes;
+      }
+    });
+
+    /*
+     * TABLEAU EQUIPES
+     */
+
+    let html = `
+
+    <h2>
+      Heures par équipe
+    </h2>
+
+
+    <table class="summary-table">
+
+      <thead>
+
+        <tr>
+
+          <th>
+            Équipe
+          </th>
+
+          <th>
+            Heures
+          </th>
+
+        </tr>
+
+      </thead>
+
+
+      <tbody>
+
+  `;
+
+    Object.entries(totalsEquipes)
+
+      .forEach(([equipe, minutes]) => {
+        html += `
+
+          <tr>
+
+            <td>
+              ${equipe}
+            </td>
+
+            <td>
+              ${formatDuration(minutes)}
+            </td>
+
+          </tr>
+
+        `;
+      });
+
+    html += `
+
+      </tbody>
+
+    </table>
+
+
+    <h2>
+      Heures par entraîneur
+    </h2>
+
+
+    <table class="summary-table">
+
+      <thead>
+
+        <tr>
+
+          <th>
+            Entraîneur
+          </th>
+
+          <th>
+            Heures
+          </th>
+
+        </tr>
+
+      </thead>
+
+
+      <tbody>
+
+  `;
+
+    /*
+     * TABLEAU ENTRAINEURS
+     */
+
+    Object.entries(totalsEntraineurs)
+
+      .forEach(([reference, minutes]) => {
+        const entraineur = getEntraineur(data, reference);
+
+        const displayName = entraineur
+          ? formatEntraineurName(entraineur)
+          : reference;
+
+        html += `
+
+          <tr>
+
+            <td>
+              ${displayName}
+            </td>
+
+            <td>
+              ${formatDuration(minutes)}
+            </td>
+
+          </tr>
+
+        `;
+      });
+
+    html += `
+
+      </tbody>
+
+    </table>
+
+  `;
+
+    summary.innerHTML = html;
+  }
+
+  /* =========================
+   ERREURS PLANNING
+   ========================= */
+
+  function showPlanningError(error) {
+    document.getElementById("planning").innerHTML =
+      "<strong>Erreur :</strong> " + error.message;
+  }
+
+  /* =========================
+   UTILISATEUR
+   ========================= */
+
+  let currentUser = null;
+
+  google.script.run
+
+    .withSuccessHandler(initializeUser)
+
+    .withFailureHandler(showUserError)
+
+    .getCurrentUser();
+
+  function initializeUser(user) {
+    currentUser = user;
+
+    console.log("Utilisateur :", user);
+
+    /*
+     * Utilisateur non autorisé.
+     */
+
+    if (!user.authorized) {
+      showUnauthorizedPage(user);
+
+      return;
+    }
+
+    /*
+     * Affichage utilisateur
+     * dans la sidebar.
+     */
+
+    displayCurrentUser(user);
+
+    /*
+     * Menu Accès :
+     * uniquement ADMIN.
+     */
+
+    const accessMenu = document.getElementById("menu-access");
+
+    if (accessMenu && user.role === "ADMIN") {
+      accessMenu.classList.remove("hidden");
+    }
+  }
+
+  function displayCurrentUser(user) {
+    const container = document.getElementById("sidebar-user");
+
+    if (!container) {
+      return;
+    }
+
+    container.innerHTML = `
+
+    <div class="sidebar-user-name">
+      ${user.prenom} ${user.nom}
+    </div>
+
+    <div class="sidebar-user-role">
+      ${user.role}
+    </div>
+
+  `;
+  }
+
+  function showUnauthorizedPage(user) {
+    /*
+     * Cache toutes les pages.
+     */
+
+    document.querySelectorAll(".app-page").forEach((page) => {
+      page.classList.add("hidden");
+    });
+
+    /*
+     * Cache le menu.
+     */
+
+    const menu = document.querySelector(".sidebar-menu");
+
+    if (menu) {
+      menu.classList.add("hidden");
+    }
+
+    /*
+     * Cache les informations
+     * utilisateur de la sidebar.
+     */
+
+    const sidebarUser = document.getElementById("sidebar-user");
+
+    if (sidebarUser) {
+      sidebarUser.classList.add("hidden");
+    }
+
+    /*
+     * Affiche la page
+     * accès non autorisé.
+     */
+
+    const page = document.getElementById("page-unauthorized");
+
+    if (page) {
+      page.classList.remove("hidden");
+    }
+
+    /*
+     * Affiche l'adresse Google
+     * identifiée.
+     */
+
+    const email = document.getElementById("unauthorized-email");
+
+    if (email) {
+      email.textContent = user.email || "";
+    }
+  }
+
+  function showUserError(error) {
+    console.error("Erreur utilisateur :", error);
+
+    showUnauthorizedPage({
+      email: "",
+    });
+  }
+
+  /* =========================
+   ACCES
+   ========================= */
+
+  let accessUsersLoaded = false;
+
+  function loadAccessUsers() {
+    const container = document.getElementById("access-users");
+
+    if (!container) {
+      return;
+    }
+
+    container.innerHTML = "Chargement des utilisateurs...";
+
+    google.script.run
+
+      .withSuccessHandler(displayAccessUsers)
+
+      .withFailureHandler(showAccessUsersError)
+
+      .getAccessUsers();
+  }
+
+  function displayAccessUsers(users) {
+    const container = document.getElementById("access-users");
+
+    if (!container) {
+      return;
+    }
+
+    let html = `
+
+    <table class="access-table">
+
+      <thead>
+
+        <tr>
+
+          <th>
+            Utilisateur
+          </th>
+
+          <th>
+            Rôle
+          </th>
+
+          <th>
+            Statut
+          </th>
+
+          <th>
+            Actions
+          </th>
+
+        </tr>
+
+      </thead>
+
+
+      <tbody>
+
+  `;
+
+    users.forEach((user) => {
+      const roleClass = "role-" + user.role.toLowerCase();
+
+      const statusClass = user.actif ? "status-active" : "status-inactive";
+
+      const statusLabel = user.actif ? "Actif" : "Inactif";
+
+      html += `
+
+      <tr>
+
+        <td>
+
+          <div class="access-user-name">
+            ${user.prenom} ${user.nom}
+          </div>
+
+          <div class="access-user-email">
+            ${user.email}
+          </div>
+
+        </td>
+
+
+        <td>
+
+          <span
+            class="role-badge ${roleClass}"
+          >
+            ${user.role}
+          </span>
+
+        </td>
+
+
+        <td>
+
+          <span
+            class="status-badge ${statusClass}"
+          >
+            ${statusLabel}
+          </span>
+
+        </td>
+
+
+        <td>
+
+          <button
+            class="access-action"
+            onclick='openAccessModal(${JSON.stringify(user)})'
+          >
+            Modifier
+          </button>
+
+        </td>
+
+      </tr>
+
+    `;
+    });
+
+    html += `
+
+      </tbody>
+
+    </table>
+
+  `;
+
+    container.innerHTML = html;
+
+    accessUsersLoaded = true;
+  }
+
+  function openAccessModal(user = null) {
+    const modal = document.getElementById("access-modal");
+
+    const title = document.getElementById("access-modal-title");
+
+    const email = document.getElementById("access-email");
+
+    const error = document.getElementById("access-form-error");
+
+    error.classList.add("hidden");
+
+    error.textContent = "";
+
+    if (user) {
+      title.textContent = "Modifier l'utilisateur";
+
+      document.getElementById("access-prenom").value = user.prenom;
+
+      document.getElementById("access-nom").value = user.nom;
+
+      email.value = user.email;
+
+      /*
+       * On bloque l'email lors
+       * d'une modification.
+       */
+
+      email.disabled = true;
+
+      document.getElementById("access-role").value = user.role;
+
+      document.getElementById("access-actif").checked = user.actif;
+    } else {
+      title.textContent = "Ajouter un utilisateur";
+
+      document.getElementById("access-prenom").value = "";
+
+      document.getElementById("access-nom").value = "";
+
+      email.value = "";
+
+      email.disabled = false;
+
+      document.getElementById("access-role").value = "COACH";
+
+      document.getElementById("access-actif").checked = true;
+    }
+
+    modal.classList.remove("hidden");
+  }
+
+  function closeAccessModal() {
+    document.getElementById("access-modal").classList.add("hidden");
+  }
+
+  function saveAccessUserFromForm() {
+    const button = document.getElementById("access-save-button");
+
+    const error = document.getElementById("access-form-error");
+
+    error.classList.add("hidden");
+
+    const user = {
+      prenom: document.getElementById("access-prenom").value,
+
+      nom: document.getElementById("access-nom").value,
+
+      email: document.getElementById("access-email").value,
+
+      role: document.getElementById("access-role").value,
+
+      actif: document.getElementById("access-actif").checked,
+    };
+
+    button.disabled = true;
+
+    button.textContent = "Enregistrement...";
+
+    google.script.run
+
+      .withSuccessHandler((users) => {
+        button.disabled = false;
+
+        button.textContent = "Enregistrer";
+
+        closeAccessModal();
+
+        displayAccessUsers(users);
+      })
+
+      .withFailureHandler((err) => {
+        button.disabled = false;
+
+        button.textContent = "Enregistrer";
+
+        error.textContent = err.message;
+
+        error.classList.remove("hidden");
+      })
+
+      .saveAccessUser(user);
+  }
+
+  function showAccessUsersError(error) {
+    const container = document.getElementById("access-users");
+
+    if (!container) {
+      return;
+    }
+
+    container.innerHTML = `
+
+    <div
+      style="
+        padding: 20px;
+      "
+    >
+
+      <strong>
+        Erreur :
+      </strong>
+
+      ${error.message}
+
+    </div>
+
+  `;
+  }
+  /* =========================
+   ARBITRAGE
+   ========================= */
+
+  let arbitresData = [];
+
+  /*
+   * Ordre d'affichage des catégories
+   * intégrées au vivier d'arbitrage.
+   */
+  const arbitrageCategorieOrder = [
+    "U13F",
+    "U13M",
+    "U15F",
+    "U15M",
+    "U18F",
+    "U18M",
+    "SENIORS_F",
+    "SENIORS_M",
+  ];
+
+  /*
+   * Niveaux d'arbitrage.
+   */
+  const arbitrageNiveaux = [
+    {
+      value: "",
+      label: "Non évalué",
+    },
+    {
+      value: "DEBUTANT",
+      label: "Débutant",
+    },
+    {
+      value: "APPRENTISSAGE",
+      label: "En apprentissage",
+    },
+    {
+      value: "AUTONOME",
+      label: "Autonome",
+    },
+    {
+      value: "CONFIRME",
+      label: "Confirmé",
+    },
+    {
+      value: "REFERENT",
+      label: "Référent",
+    },
+  ];
+
+  /*
+   * Libellés des types d'arbitres.
+   */
+  const arbitrageTypeLabels = {
+    JOUEUR: "Joueur",
+
+    CLUB: "Club",
+
+    EXTERIEUR: "Extérieur",
+  };
+
+  /**
+   * Charge le référentiel arbitrage.
+   */
+  function loadArbitrage() {
+    const loading = document.getElementById("arbitrage-loading");
+
+    const table = document.getElementById("arbitrage-table-container");
+
+    const empty = document.getElementById("arbitrage-empty");
+
+    if (loading) {
+      loading.style.display = "block";
+
+      loading.textContent = "Chargement...";
+    }
+
+    if (table) {
+      table.style.display = "none";
+    }
+
+    if (empty) {
+      empty.style.display = "none";
+    }
+
+    google.script.run
+
+      .withSuccessHandler(handleArbitresLoaded)
+
+      .withFailureHandler(handleArbitrageError)
+
+      .getArbitres("2026-2027");
+  }
+  function updateArbitrageStats() {
+    const total = arbitresData.length;
+
+    const evaluated = arbitresData.filter(function (arbitre) {
+      return Boolean(arbitre.Niveau);
+    }).length;
+
+    const autonomousLevels = ["AUTONOME", "CONFIRME", "REFERENT"];
+
+    const autonomous = arbitresData.filter(function (arbitre) {
+      return autonomousLevels.includes(arbitre.Niveau);
+    }).length;
+
+    const external = arbitresData.filter(function (arbitre) {
+      return arbitre.Type === "EXTERIEUR";
+    }).length;
+
+    const totalElement = document.getElementById("arbitrage-stat-total");
+
+    const evaluatedElement = document.getElementById(
+      "arbitrage-stat-evaluated",
+    );
+
+    const autonomousElement = document.getElementById(
+      "arbitrage-stat-autonomous",
+    );
+
+    const externalElement = document.getElementById("arbitrage-stat-external");
+
+    if (totalElement) {
+      totalElement.textContent = total;
+    }
+
+    if (evaluatedElement) {
+      evaluatedElement.textContent = evaluated;
+    }
+
+    if (autonomousElement) {
+      autonomousElement.textContent = autonomous;
+    }
+
+    if (externalElement) {
+      externalElement.textContent = external;
+    }
+  }
+
+  /**
+   * Réception des données.
+   */
+  function handleArbitresLoaded(data) {
+    console.log("Données reçues getArbitres :", data);
+
+    arbitresData = Array.isArray(data) ? data : [];
+
+    updateArbitrageStats();
+    console.log("Nombre d'arbitres chargés :", arbitresData.length);
+
+    buildArbitrageCategoryFilter();
+
+    filterArbitres();
+  }
+
+  /**
+   * Construit le filtre catégories.
+   */
+  function buildArbitrageCategoryFilter() {
+    const select = document.getElementById("arbitrage-filter-categorie");
+
+    if (!select) {
+      return;
+    }
+
+    const currentValue = select.value;
+
+    const categories = [
+      ...new Set(
+        arbitresData
+
+          .filter((arbitre) => arbitre.Type === "JOUEUR")
+
+          .map((arbitre) => String(arbitre.Categorie || "").trim())
+
+          .filter(Boolean),
+      ),
+    ];
+
+    categories.sort((a, b) => {
+      const indexA = arbitrageCategorieOrder.indexOf(a);
+
+      const indexB = arbitrageCategorieOrder.indexOf(b);
+
+      const orderA = indexA === -1 ? 999 : indexA;
+
+      const orderB = indexB === -1 ? 999 : indexB;
+
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+
+      return a.localeCompare(b, "fr");
+    });
+
+    select.innerHTML = `
+      <option value="">
+        Toutes les catégories
+      </option>
+    `;
+
+    categories.forEach((categorie) => {
+      const option = document.createElement("option");
+
+      option.value = categorie;
+
+      option.textContent = formatArbitrageCategorie(categorie);
+
+      select.appendChild(option);
+    });
+
+    if (categories.includes(currentValue)) {
+      select.value = currentValue;
+    }
+  }
+
+  /**
+   * Filtre les arbitres.
+   */
+  function filterArbitres() {
+    const type = document.getElementById("arbitrage-filter-type")?.value || "";
+
+    const categorie =
+      document.getElementById("arbitrage-filter-categorie")?.value || "";
+
+    const niveau =
+      document.getElementById("arbitrage-filter-niveau")?.value || "";
+
+    const search = String(
+      document.getElementById("arbitrage-filter-search")?.value || "",
+    )
+      .trim()
+      .toLowerCase();
+
+    const filtered = arbitresData
+
+      .filter((arbitre) => !type || String(arbitre.Type || "") === type)
+
+      .filter(
+        (arbitre) =>
+          !categorie || String(arbitre.Categorie || "") === categorie,
+      )
+
+      .filter((arbitre) => {
+        if (!niveau) {
+          return true;
+        }
+
+        const currentNiveau = String(arbitre.Niveau || "").trim();
+
+        if (niveau === "NON_EVALUE") {
+          return currentNiveau === "";
+        }
+
+        return currentNiveau === niveau;
+      })
+
+      .filter((arbitre) => {
+        if (!search) {
+          return true;
+        }
+
+        const identity = (
+          String(arbitre.Prenom || "") +
+          " " +
+          String(arbitre.Nom || "")
+        ).toLowerCase();
+
+        return identity.includes(search);
+      });
+
+    displayArbitres(filtered);
+  }
+
+  /**
+   * Affiche le tableau.
+   */
+  function displayArbitres(arbitres) {
+    const loading = document.getElementById("arbitrage-loading");
+
+    const table = document.getElementById("arbitrage-table-container");
+
+    const body = document.getElementById("arbitrage-table-body");
+
+    const empty = document.getElementById("arbitrage-empty");
+
+    const summary = document.getElementById("arbitrage-summary");
+
+    if (loading) {
+      loading.style.display = "none";
+    }
+
+    if (!body) {
+      return;
+    }
+
+    body.innerHTML = "";
+
+    /*
+     * =========================
+     * RESUME
+     * =========================
+     */
+
+    const total = arbitresData.length;
+
+    const evaluated = arbitresData.filter(
+      (arbitre) => String(arbitre.Niveau || "").trim() !== "",
+    ).length;
+
+    const joueurs = arbitresData.filter(
+      (arbitre) => arbitre.Type === "JOUEUR",
+    ).length;
+
+    const club = arbitresData.filter(
+      (arbitre) => arbitre.Type === "CLUB",
+    ).length;
+
+    const exterieurs = arbitresData.filter(
+      (arbitre) => arbitre.Type === "EXTERIEUR",
+    ).length;
+
+    if (summary) {
+      summary.textContent =
+        arbitres.length +
+        " arbitre(s) affiché(s)" +
+        " sur " +
+        total +
+        " • " +
+        evaluated +
+        " évalué(s)" +
+        " • " +
+        joueurs +
+        " joueur(s)" +
+        " • " +
+        club +
+        " club" +
+        " • " +
+        exterieurs +
+        " extérieur(s)";
+    }
+
+    /*
+     * =========================
+     * AUCUN RESULTAT
+     * =========================
+     */
+
+    if (arbitres.length === 0) {
+      if (table) {
+        table.style.display = "none";
+      }
+
+      if (empty) {
+        empty.style.display = "block";
+      }
+
+      return;
+    }
+
+    if (empty) {
+      empty.style.display = "none";
+    }
+
+    if (table) {
+      table.style.display = "block";
+    }
+
+    /*
+     * =========================
+     * LIGNES
+     * =========================
+     */
+
+    arbitres.forEach((arbitre) => {
+      const tr = document.createElement("tr");
+
+      /*
+       * =========================
+       * ARBITRE
+       * =========================
+       */
+
+      const arbitreTd = document.createElement("td");
+
+      const identity =
+        [arbitre.Prenom, arbitre.Nom].filter(Boolean).join(" ") || "—";
+
+      /*
+       * CLUB / EXTERIEUR :
+       * le nom ouvre la fiche.
+       */
+
+      if (arbitre.Type === "CLUB" || arbitre.Type === "EXTERIEUR") {
+        const nameButton = document.createElement("button");
+
+        nameButton.type = "button";
+
+        nameButton.textContent = identity;
+
+        nameButton.className = "arbitrage-name-button";
+
+        nameButton.addEventListener("click", function () {
+          openArbitreEdit(arbitre);
+        });
+
+        arbitreTd.appendChild(nameButton);
+      } else {
+        const name = document.createElement("span");
+
+        name.className = "arbitrage-name";
+
+        name.textContent = identity;
+
+        arbitreTd.appendChild(name);
+      }
+
+      /*
+       * =========================
+       * TYPE
+       * =========================
+       */
+
+      const typeTd = document.createElement("td");
+
+      const typeBadge = document.createElement("span");
+
+      typeBadge.textContent =
+        arbitrageTypeLabels[arbitre.Type] || arbitre.Type || "—";
+
+      typeBadge.className = "arbitrage-badge";
+
+      if (arbitre.Type === "JOUEUR") {
+        typeBadge.classList.add("arbitrage-type-joueur");
+      } else if (arbitre.Type === "CLUB") {
+        typeBadge.classList.add("arbitrage-type-club");
+      } else if (arbitre.Type === "EXTERIEUR") {
+        typeBadge.classList.add("arbitrage-type-exterieur");
+      }
+
+      typeTd.appendChild(typeBadge);
+
+      /*
+       * =========================
+       * CATEGORIE
+       * =========================
+       */
+
+      const categorieTd = document.createElement("td");
+
+      if (arbitre.Type === "JOUEUR" && arbitre.Categorie) {
+        const categorieBadge = document.createElement("span");
+
+        categorieBadge.className = "arbitrage-badge arbitrage-category-badge";
+
+        categorieBadge.textContent = formatArbitrageCategorie(
+          arbitre.Categorie,
+        );
+
+        categorieTd.appendChild(categorieBadge);
+      } else {
+        categorieTd.textContent = "—";
+      }
+
+      /*
+       * =========================
+       * LICENCE
+       * =========================
+       */
+
+      const licenceTd = document.createElement("td");
+
+      licenceTd.textContent =
+        arbitre.Type === "JOUEUR" ? arbitre.Licence_ffbb || "—" : "—";
+
+      /*
+       * =========================
+       * NIVEAU
+       * =========================
+       */
+
+      const niveauTd = document.createElement("td");
+
+      const select = document.createElement("select");
+
+      select.className = "arbitrage-level-select";
+
+      arbitrageNiveaux.forEach((niveau) => {
+        const option = document.createElement("option");
+
+        option.value = niveau.value;
+
+        option.textContent = niveau.label;
+
+        if (niveau.value === String(arbitre.Niveau || "")) {
+          option.selected = true;
+        }
+
+        select.appendChild(option);
+      });
+
+      /*
+       * Couleur initiale du niveau.
+       */
+
+      applyArbitrageLevelStyle(select);
+
+      select.addEventListener("change", function () {
+        /*
+         * On change immédiatement
+         * la couleur dans l'interface.
+         */
+
+        applyArbitrageLevelStyle(select);
+
+        /*
+         * Puis on sauvegarde.
+         */
+
+        saveArbitreNiveauFromUI(arbitre, select);
+      });
+
+      niveauTd.appendChild(select);
+
+      /*
+       * =========================
+       * AJOUT DES CELLULES
+       * =========================
+       */
+
+      tr.appendChild(arbitreTd);
+
+      tr.appendChild(typeTd);
+
+      tr.appendChild(categorieTd);
+
+      tr.appendChild(licenceTd);
+
+      tr.appendChild(niveauTd);
+
+      body.appendChild(tr);
+    });
+  }
+  function applyArbitrageLevelStyle(select) {
+    if (!select) {
+      return;
+    }
+
+    const levelClasses = [
+      "arbitrage-level-none",
+      "arbitrage-level-debutant",
+      "arbitrage-level-apprentissage",
+      "arbitrage-level-autonome",
+      "arbitrage-level-confirme",
+      "arbitrage-level-referent",
+    ];
+
+    select.classList.remove(...levelClasses);
+
+    const niveau = String(select.value || "").trim();
+
+    switch (niveau) {
+      case "DEBUTANT":
+        select.classList.add("arbitrage-level-debutant");
+
+        break;
+
+      case "APPRENTISSAGE":
+        select.classList.add("arbitrage-level-apprentissage");
+
+        break;
+
+      case "AUTONOME":
+        select.classList.add("arbitrage-level-autonome");
+
+        break;
+
+      case "CONFIRME":
+        select.classList.add("arbitrage-level-confirme");
+
+        break;
+
+      case "REFERENT":
+        select.classList.add("arbitrage-level-referent");
+
+        break;
+
+      default:
+        select.classList.add("arbitrage-level-none");
+    }
+  }
+
+  /* ============================================================
+   AJOUT ARBITRE
+   ============================================================ */
+
+  /**
+   * Affiche le formulaire
+   * d'ajout d'un arbitre.
+   */
+  function showAddArbitreForm() {
+    const form = document.getElementById("arbitrage-add-form");
+
+    const message = document.getElementById("arbitrage-add-message");
+
+    if (!form) {
+      return;
+    }
+
+    const type = document.getElementById("arbitrage-add-type");
+
+    const prenom = document.getElementById("arbitrage-add-prenom");
+
+    const nom = document.getElementById("arbitrage-add-nom");
+
+    const email = document.getElementById("arbitrage-add-email");
+
+    const telephone = document.getElementById("arbitrage-add-telephone");
+
+    const niveau = document.getElementById("arbitrage-add-niveau");
+
+    const commentaire = document.getElementById("arbitrage-add-commentaire");
+
+    if (type) {
+      type.value = "CLUB";
+    }
+
+    if (prenom) {
+      prenom.value = "";
+    }
+
+    if (nom) {
+      nom.value = "";
+    }
+
+    if (email) {
+      email.value = "";
+    }
+
+    if (telephone) {
+      telephone.value = "";
+    }
+
+    if (niveau) {
+      niveau.value = "";
+    }
+
+    if (commentaire) {
+      commentaire.value = "";
+    }
+
+    if (message) {
+      message.style.display = "none";
+
+      message.textContent = "";
+    }
+
+    form.style.display = "block";
+
+    if (prenom) {
+      prenom.focus();
+    }
+  }
+
+  /**
+   * Masque le formulaire
+   * d'ajout d'un arbitre.
+   */
+  function hideAddArbitreForm() {
+    const form = document.getElementById("arbitrage-add-form");
+
+    const message = document.getElementById("arbitrage-add-message");
+
+    if (form) {
+      form.style.display = "none";
+    }
+
+    if (message) {
+      message.style.display = "none";
+
+      message.textContent = "";
+    }
+  }
+
+  /**
+   * Enregistre un nouvel arbitre
+   * CLUB ou EXTERIEUR.
+   */
+  function submitAddArbitre() {
+    const type = document.getElementById("arbitrage-add-type")?.value || "";
+
+    const prenom = String(
+      document.getElementById("arbitrage-add-prenom")?.value || "",
+    ).trim();
+
+    const nom = String(
+      document.getElementById("arbitrage-add-nom")?.value || "",
+    ).trim();
+
+    const email = String(
+      document.getElementById("arbitrage-add-email")?.value || "",
+    ).trim();
+
+    const telephone = String(
+      document.getElementById("arbitrage-add-telephone")?.value || "",
+    ).trim();
+
+    const niveau = document.getElementById("arbitrage-add-niveau")?.value || "";
+
+    const commentaire = String(
+      document.getElementById("arbitrage-add-commentaire")?.value || "",
+    ).trim();
+
+    const message = document.getElementById("arbitrage-add-message");
+
+    const submitButton = document.getElementById("arbitrage-add-submit");
+
+    /*
+     * =========================
+     * VALIDATION UI
+     * =========================
+     */
+
+    if (!prenom) {
+      showAddArbitreMessage("Le prénom est obligatoire.", true);
+
+      return;
+    }
+
+    if (!nom) {
+      showAddArbitreMessage("Le nom est obligatoire.", true);
+
+      return;
+    }
+
+    /*
+     * =========================
+     * ENVOI
+     * =========================
+     */
+
+    if (submitButton) {
+      submitButton.disabled = true;
+
+      submitButton.textContent = "Ajout...";
+    }
+
+    if (message) {
+      message.style.display = "none";
+    }
+
+    const data = {
+      Saison_id: "2026-2027",
+
+      Type: type,
+
+      Prenom: prenom,
+
+      Nom: nom,
+
+      Email: email,
+
+      Telephone: telephone,
+
+      Niveau: niveau,
+
+      Commentaire: commentaire,
+    };
+
+    google.script.run
+
+      .withSuccessHandler((result) => {
+        if (submitButton) {
+          submitButton.disabled = false;
+
+          submitButton.textContent = "Ajouter";
+        }
+
+        hideAddArbitreForm();
+
+        loadArbitrage();
+      })
+
+      .withFailureHandler((error) => {
+        if (submitButton) {
+          submitButton.disabled = false;
+
+          submitButton.textContent = "Ajouter";
+        }
+
+        const errorMessage =
+          error?.message || String(error) || "Une erreur est survenue.";
+
+        showAddArbitreMessage(errorMessage, true);
+      })
+
+      .saveArbitreExterne(data);
+  }
+
+  /**
+   * Affiche un message dans
+   * le formulaire d'ajout.
+   */
+  function showAddArbitreMessage(text, isError) {
+    const message = document.getElementById("arbitrage-add-message");
+
+    if (!message) {
+      return;
+    }
+
+    message.textContent = text;
+
+    message.style.display = "block";
+
+    message.style.color = isError ? "#b42318" : "#067647";
+  }
+
+  /* ============================================================
+   EDITION ARBITRE CLUB / EXTERIEUR
+   ============================================================ */
+
+  /**
+   * Ouvre la fiche d'un arbitre.
+   */
+  function openArbitreEdit(arbitre) {
+    if (!arbitre || (arbitre.Type !== "CLUB" && arbitre.Type !== "EXTERIEUR")) {
+      return;
+    }
+
+    const overlay = document.getElementById("arbitrage-edit-overlay");
+
+    if (!overlay) {
+      return;
+    }
+
+    document.getElementById("arbitrage-edit-id").value =
+      arbitre.Arbitre_id || "";
+
+    document.getElementById("arbitrage-edit-type").value =
+      arbitre.Type || "CLUB";
+
+    document.getElementById("arbitrage-edit-prenom").value =
+      arbitre.Prenom || "";
+
+    document.getElementById("arbitrage-edit-nom").value = arbitre.Nom || "";
+
+    document.getElementById("arbitrage-edit-email").value = arbitre.Email || "";
+
+    document.getElementById("arbitrage-edit-telephone").value =
+      arbitre.Telephone || "";
+
+    document.getElementById("arbitrage-edit-niveau").value =
+      arbitre.Niveau || "";
+
+    document.getElementById("arbitrage-edit-commentaire").value =
+      arbitre.Commentaire || "";
+
+    const title = document.getElementById("arbitrage-edit-title");
+
+    if (title) {
+      title.textContent =
+        [arbitre.Prenom, arbitre.Nom].filter(Boolean).join(" ") || "Arbitre";
+    }
+
+    const message = document.getElementById("arbitrage-edit-message");
+
+    if (message) {
+      message.style.display = "none";
+
+      message.textContent = "";
+    }
+
+    overlay.style.display = "block";
+
+    /*
+     * Empêche la page située derrière
+     * la modale de défiler.
+     */
+
+    document.body.style.overflow = "hidden";
+
+    const prenomInput = document.getElementById("arbitrage-edit-prenom");
+
+    if (prenomInput) {
+      setTimeout(() => prenomInput.focus(), 50);
+    }
+  }
+
+  /**
+   * Ferme la fiche.
+   */
+  function closeArbitreEdit() {
+    const overlay = document.getElementById("arbitrage-edit-overlay");
+
+    if (overlay) {
+      overlay.style.display = "none";
+    }
+
+    document.body.style.overflow = "";
+  }
+
+  /**
+   * Ferme la modale lorsqu'on clique
+   * directement sur l'arrière-plan.
+   */
+  function handleArbitreEditOverlayClick(event) {
+    if (event.target === event.currentTarget) {
+      closeArbitreEdit();
+    }
+  }
+
+  /**
+   * Enregistre les modifications
+   * d'un arbitre CLUB / EXTERIEUR.
+   */
+  function saveArbitreEdit() {
+    const arbitreId = String(
+      document.getElementById("arbitrage-edit-id")?.value || "",
+    ).trim();
+
+    const type = document.getElementById("arbitrage-edit-type")?.value || "";
+
+    const prenom = String(
+      document.getElementById("arbitrage-edit-prenom")?.value || "",
+    ).trim();
+
+    const nom = String(
+      document.getElementById("arbitrage-edit-nom")?.value || "",
+    ).trim();
+
+    const email = String(
+      document.getElementById("arbitrage-edit-email")?.value || "",
+    ).trim();
+
+    const telephone = String(
+      document.getElementById("arbitrage-edit-telephone")?.value || "",
+    ).trim();
+
+    const niveau =
+      document.getElementById("arbitrage-edit-niveau")?.value || "";
+
+    const commentaire = String(
+      document.getElementById("arbitrage-edit-commentaire")?.value || "",
+    ).trim();
+
+    /*
+     * =========================
+     * VALIDATION
+     * =========================
+     */
+
+    if (!arbitreId) {
+      showArbitreEditMessage("Identifiant arbitre manquant.", true);
+
+      return;
+    }
+
+    if (!prenom) {
+      showArbitreEditMessage("Le prénom est obligatoire.", true);
+
+      return;
+    }
+
+    if (!nom) {
+      showArbitreEditMessage("Le nom est obligatoire.", true);
+
+      return;
+    }
+
+    const saveButton = document.getElementById("arbitrage-edit-save");
+
+    const deleteButton = document.getElementById("arbitrage-edit-delete");
+
+    if (saveButton) {
+      saveButton.disabled = true;
+
+      saveButton.textContent = "Enregistrement...";
+    }
+
+    if (deleteButton) {
+      deleteButton.disabled = true;
+    }
+
+    const data = {
+      Arbitre_id: arbitreId,
+
+      Type: type,
+
+      Prenom: prenom,
+
+      Nom: nom,
+
+      Email: email,
+
+      Telephone: telephone,
+
+      Niveau: niveau,
+
+      Commentaire: commentaire,
+    };
+
+    google.script.run
+
+      .withSuccessHandler((result) => {
+        if (saveButton) {
+          saveButton.disabled = false;
+
+          saveButton.textContent = "Enregistrer";
+        }
+
+        if (deleteButton) {
+          deleteButton.disabled = false;
+        }
+
+        closeArbitreEdit();
+
+        loadArbitrage();
+      })
+
+      .withFailureHandler((error) => {
+        if (saveButton) {
+          saveButton.disabled = false;
+
+          saveButton.textContent = "Enregistrer";
+        }
+
+        if (deleteButton) {
+          deleteButton.disabled = false;
+        }
+
+        const message =
+          error?.message || String(error) || "Une erreur est survenue.";
+
+        showArbitreEditMessage(message, true);
+      })
+
+      .updateArbitreExterne(data);
+  }
+
+  /**
+   * Supprime un arbitre
+   * CLUB / EXTERIEUR.
+   */
+  function deleteArbitreFromUI() {
+    const arbitreId = String(
+      document.getElementById("arbitrage-edit-id")?.value || "",
+    ).trim();
+
+    const prenom = String(
+      document.getElementById("arbitrage-edit-prenom")?.value || "",
+    ).trim();
+
+    const nom = String(
+      document.getElementById("arbitrage-edit-nom")?.value || "",
+    ).trim();
+
+    if (!arbitreId) {
+      showArbitreEditMessage("Identifiant arbitre manquant.", true);
+
+      return;
+    }
+
+    const identity = [prenom, nom].filter(Boolean).join(" ") || "cet arbitre";
+
+    /*
+     * Confirmation volontairement
+     * explicite car l'action est
+     * destructive.
+     */
+
+    const confirmed = window.confirm(
+      "Supprimer " +
+        identity +
+        " du vivier d'arbitrage ?\n\n" +
+        "Cette action est définitive.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const saveButton = document.getElementById("arbitrage-edit-save");
+
+    const deleteButton = document.getElementById("arbitrage-edit-delete");
+
+    if (saveButton) {
+      saveButton.disabled = true;
+    }
+
+    if (deleteButton) {
+      deleteButton.disabled = true;
+
+      deleteButton.textContent = "Suppression...";
+    }
+
+    google.script.run
+
+      .withSuccessHandler((result) => {
+        if (deleteButton) {
+          deleteButton.disabled = false;
+
+          deleteButton.textContent = "Supprimer l'arbitre";
+        }
+
+        if (saveButton) {
+          saveButton.disabled = false;
+        }
+
+        closeArbitreEdit();
+
+        loadArbitrage();
+      })
+
+      .withFailureHandler((error) => {
+        if (deleteButton) {
+          deleteButton.disabled = false;
+
+          deleteButton.textContent = "Supprimer l'arbitre";
+        }
+
+        if (saveButton) {
+          saveButton.disabled = false;
+        }
+
+        const message =
+          error?.message || String(error) || "Une erreur est survenue.";
+
+        showArbitreEditMessage(message, true);
+      })
+
+      .deleteArbitreExterne(arbitreId);
+  }
+
+  /**
+   * Affiche un message dans
+   * la fiche arbitre.
+   */
+  function showArbitreEditMessage(text, isError) {
+    const message = document.getElementById("arbitrage-edit-message");
+
+    if (!message) {
+      return;
+    }
+
+    message.textContent = text;
+
+    message.style.display = "block";
+
+    if (isError) {
+      message.style.color = "#b42318";
+
+      message.style.background = "#fef3f2";
+    } else {
+      message.style.color = "#067647";
+
+      message.style.background = "#ecfdf3";
+    }
+  }
+
+  /*
+   * Fermeture avec Echap.
+   */
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
+      const overlay = document.getElementById("arbitrage-edit-overlay");
+
+      if (overlay && overlay.style.display !== "none") {
+        closeArbitreEdit();
+      }
+    }
+  });
+
+  /* ============================================================
+   NIVEAU ARBITRAGE
+   ============================================================ */
+
+  /**
+   * Sauvegarde un changement
+   * de niveau d'arbitrage.
+   *
+   * JOUEUR :
+   * sauvegarde via Contact_id.
+   *
+   * CLUB / EXTERIEUR :
+   * sauvegarde via Arbitre_id.
+   */
+  function saveArbitreNiveauFromUI(arbitre, select) {
+    const previousValue = String(arbitre.Niveau || "");
+
+    const newValue = select.value;
+
+    select.disabled = true;
+
+    const handleSuccess = (result) => {
+      /*
+       * Mise à jour des données locales
+       * uniquement après confirmation
+       * du serveur.
+       */
+
+      arbitre.Niveau = newValue;
+
+      if (result && result.Arbitre_id) {
+        arbitre.Arbitre_id = result.Arbitre_id;
+      }
+
+      select.disabled = false;
+
+      /*
+       * Recalcul des indicateurs
+       * du haut de page.
+       */
+
+      updateArbitrageStats();
+
+      /*
+       * Réapplication des filtres
+       * et rafraîchissement du tableau.
+       */
+
+      filterArbitres();
+    };
+
+    const handleFailure = (error) => {
+      /*
+       * Retour à l'ancienne valeur.
+       */
+
+      select.value = previousValue;
+
+      /*
+       * Retour également à
+       * l'ancienne couleur.
+       */
+
+      applyArbitrageLevelStyle(select);
+
+      select.disabled = false;
+
+      handleArbitrageError(error);
+    };
+
+    /*
+     * =========================
+     * JOUEUR
+     * =========================
+     */
+
+    if (arbitre.Type === "JOUEUR") {
+      google.script.run
+
+        .withSuccessHandler(handleSuccess)
+
+        .withFailureHandler(handleFailure)
+
+        .saveArbitreNiveau(arbitre.Contact_id, "2026-2027", newValue);
+
+      return;
+    }
+
+    /*
+     * =========================
+     * CLUB / EXTERIEUR
+     * =========================
+     */
+
+    if (arbitre.Type === "CLUB" || arbitre.Type === "EXTERIEUR") {
+      if (!arbitre.Arbitre_id) {
+        handleFailure(new Error("Identifiant arbitre manquant."));
+
+        return;
+      }
+
+      google.script.run
+
+        .withSuccessHandler(handleSuccess)
+
+        .withFailureHandler(handleFailure)
+
+        .saveArbitreExterneNiveau(arbitre.Arbitre_id, newValue);
+
+      return;
+    }
+
+    /*
+     * =========================
+     * TYPE INCONNU
+     * =========================
+     */
+
+    handleFailure(new Error("Type d'arbitre non reconnu."));
+  }
+
+  /**
+   * Format catégorie.
+   */
+  function formatArbitrageCategorie(categorie) {
+    const labels = {
+      SENIORS_F: "Seniors F",
+
+      SENIORS_M: "Seniors M",
+    };
+
+    return labels[categorie] || categorie || "—";
+  }
+
+  /**
+   * Erreur Arbitrage.
+   */
+  function handleArbitrageError(error) {
+    console.error("Erreur Arbitrage :", error);
+
+    const loading = document.getElementById("arbitrage-loading");
+
+    const message =
+      error?.message || String(error) || "Une erreur est survenue.";
+
+    if (loading) {
+      loading.style.display = "block";
+
+      loading.innerHTML = `
+        <strong>
+          Erreur :
+        </strong>
+
+        ${escapeHtml(message)}
+      `;
+    }
+  }
+  /* =========================
+   ADHESIONS - IMPORTS
+   ========================= */
+
+  /**
+   * Ouvre le panneau des imports.
+   */
+  function openAdhesionImports() {
+    const overlay = document.getElementById("adhesion-import-overlay");
+
+    const panel = document.getElementById("adhesion-import-panel");
+
+    if (!overlay || !panel) {
+      return;
+    }
+
+    overlay.classList.add("open");
+
+    panel.classList.add("open");
+
+    panel.setAttribute("aria-hidden", "false");
+
+    /*
+     * Les exports ne sont chargés
+     * qu'à l'ouverture du panneau.
+     */
+
+    loadAssoConnectExports();
+    loadFbiExports();
+  }
+
+  /**
+   * Ferme le panneau des imports.
+   */
+  function closeAdhesionImports() {
+    const overlay = document.getElementById("adhesion-import-overlay");
+
+    const panel = document.getElementById("adhesion-import-panel");
+
+    if (overlay) {
+      overlay.classList.remove("open");
+    }
+
+    if (panel) {
+      panel.classList.remove("open");
+
+      panel.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  /**
+   * Clic sur le fond du panneau.
+   */
+  function handleAdhesionImportOverlayClick() {
+    closeAdhesionImports();
+  }
+
+  /* =========================
+   ADHESIONS - ASSOCONNECT
+   ========================= */
+
+  let assoConnectExports = [];
+
+  let assoConnectImportRunning = false;
+
+  /**
+   * Charge les exports AssoConnect
+   * disponibles pour la saison.
+   */
+  function loadAssoConnectExports() {
+    if (assoConnectImportRunning) {
+      return;
+    }
+
+    const loading = document.getElementById("assoconnect-import-loading");
+
+    const content = document.getElementById("assoconnect-import-content");
+
+    const error = document.getElementById("assoconnect-import-error");
+
+    const result = document.getElementById("assoconnect-import-result");
+
+    if (!loading || !content) {
+      return;
+    }
+
+    loading.style.display = "block";
+
+    loading.textContent = "Chargement des exports...";
+
+    content.style.display = "none";
+
+    if (error) {
+      error.style.display = "none";
+
+      error.textContent = "";
+    }
+
+    if (result) {
+      result.style.display = "none";
+
+      result.textContent = "";
+    }
+
+    google.script.run
+
+      .withSuccessHandler(displayAssoConnectExports)
+
+      .withFailureHandler(showAssoConnectImportError)
+
+      .getAssoConnectExports("2026-2027");
+  }
+
+  /**
+   * Affiche les fichiers AssoConnect.
+   */
+  function displayAssoConnectExports(exports) {
+    assoConnectExports = exports;
+
+    const tbody = document.getElementById("assoconnect-import-files");
+
+    const loading = document.getElementById("assoconnect-import-loading");
+
+    const content = document.getElementById("assoconnect-import-content");
+
+    if (!tbody) {
+      return;
+    }
+
+    tbody.innerHTML = "";
+
+    if (!exports || exports.length === 0) {
+      const tr = document.createElement("tr");
+
+      const td = document.createElement("td");
+
+      td.colSpan = 3;
+
+      td.textContent = "Aucun export AssoConnect trouvé.";
+
+      tr.appendChild(td);
+
+      tbody.appendChild(tr);
+    } else {
+      exports.forEach((file) => {
+        const tr = document.createElement("tr");
+
+        /*
+         * Fichier.
+         */
+
+        const nameTd = document.createElement("td");
+
+        nameTd.textContent = file.name;
+
+        /*
+         * Nombre de lignes.
+         */
+
+        const linesTd = document.createElement("td");
+
+        linesTd.textContent = file.lignes;
+
+        /*
+         * Type.
+         */
+
+        const typeTd = document.createElement("td");
+
+        if (file.type === "VALIDE") {
+          typeTd.innerHTML = `
+
+              <span
+                class="status-badge status-active"
+              >
+                Validées
+              </span>
+
+            `;
+        } else if (file.type === "VIDE") {
+          typeTd.innerHTML = `
+
+              <span
+                class="status-badge status-inactive"
+              >
+                Fichier vide
+              </span>
+
+            `;
+        } else {
+          const select = document.createElement("select");
+
+          select.className = "form-control";
+
+          select.dataset.fileId = file.id;
+
+          select.innerHTML = `
+
+              <option value="">
+                Sélectionner...
+              </option>
+
+              <option value="ATTENTE_PAIEMENT">
+                Attente paiement
+              </option>
+
+              <option value="ATTENTE_VALIDATION">
+                Attente validation
+              </option>
+
+            `;
+
+          typeTd.appendChild(select);
+        }
+
+        tr.appendChild(nameTd);
+
+        tr.appendChild(linesTd);
+
+        tr.appendChild(typeTd);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    if (loading) {
+      loading.style.display = "none";
+    }
+
+    if (content) {
+      content.style.display = "block";
+    }
+  }
+
+  /**
+   * Contrôle les types sélectionnés
+   * puis lance réellement l'import.
+   */
+  function prepareAssoConnectImport() {
+    if (assoConnectImportRunning) {
+      return;
+    }
+
+    const files = [];
+
+    const errorDiv = document.getElementById("assoconnect-import-error");
+
+    const resultDiv = document.getElementById("assoconnect-import-result");
+
+    if (errorDiv) {
+      errorDiv.style.display = "none";
+
+      errorDiv.textContent = "";
+    }
+
+    if (resultDiv) {
+      resultDiv.style.display = "none";
+
+      resultDiv.textContent = "";
+    }
+
+    if (!assoConnectExports || assoConnectExports.length === 0) {
+      showAssoConnectImportError({
+        message: "Aucun export AssoConnect à importer.",
+      });
+
+      return;
+    }
+
+    for (const file of assoConnectExports) {
+      /*
+       * Les fichiers vides
+       * ne sont pas importés.
+       */
+
+      if (file.type === "VIDE") {
+        continue;
+      }
+
+      /*
+       * Export validé.
+       */
+
+      if (file.type === "VALIDE") {
+        files.push({
+          id: file.id,
+
+          type: "VALIDE",
+        });
+
+        continue;
+      }
+
+      /*
+       * Export non validé :
+       * choix manuel obligatoire.
+       */
+
+      const select = document.querySelector(
+        `select[data-file-id="${file.id}"]`,
+      );
+
+      if (!select || !select.value) {
+        showAssoConnectImportError({
+          message: "Merci de sélectionner le type de chaque export.",
+        });
+
+        return;
+      }
+
+      files.push({
+        id: file.id,
+
+        type: select.value,
+      });
+    }
+
+    if (files.length === 0) {
+      showAssoConnectImportError({
+        message: "Aucun fichier exploitable à importer.",
+      });
+
+      return;
+    }
+
+    runAssoConnectImport(files);
+  }
+
+  /**
+   * Lance réellement l'import
+   * côté Apps Script.
+   */
+  function runAssoConnectImport(files) {
+    const button = document.getElementById("assoconnect-import-button");
+
+    const resultDiv = document.getElementById("assoconnect-import-result");
+
+    const errorDiv = document.getElementById("assoconnect-import-error");
+
+    assoConnectImportRunning = true;
+
+    if (button) {
+      button.disabled = true;
+
+      button.textContent = "Import en cours...";
+    }
+
+    /*
+     * Bloque les sélecteurs
+     * pendant l'import.
+     */
+
+    document
+      .querySelectorAll("#assoconnect-import-files select")
+      .forEach((select) => {
+        select.disabled = true;
+      });
+
+    if (resultDiv) {
+      resultDiv.style.display = "block";
+
+      resultDiv.textContent = "Lecture et import des exports AssoConnect...";
+    }
+
+    if (errorDiv) {
+      errorDiv.style.display = "none";
+
+      errorDiv.textContent = "";
+    }
+
+    google.script.run
+
+      .withSuccessHandler(handleAssoConnectImportSuccess)
+
+      .withFailureHandler(handleAssoConnectImportFailure)
+
+      .importAssoConnect("2026-2027", files);
+  }
+
+  /**
+   * Import terminé avec succès.
+   */
+  function handleAssoConnectImportSuccess(result) {
+    assoConnectImportRunning = false;
+
+    const button = document.getElementById("assoconnect-import-button");
+
+    const resultDiv = document.getElementById("assoconnect-import-result");
+
+    if (button) {
+      button.disabled = false;
+
+      button.textContent = "Importer";
+    }
+
+    document
+      .querySelectorAll("#assoconnect-import-files select")
+      .forEach((select) => {
+        select.disabled = false;
+      });
+
+    if (resultDiv) {
+      resultDiv.style.display = "block";
+
+      resultDiv.innerHTML = `
+
+        <strong>
+          Import terminé.
+        </strong>
+
+        ${result.fichiers}
+        fichier(s) traité(s),
+
+        ${result.lignes}
+        ligne(s) importée(s).
+
+      `;
+    }
+  }
+
+  /**
+   * Import échoué.
+   */
+  function handleAssoConnectImportFailure(error) {
+    assoConnectImportRunning = false;
+
+    const button = document.getElementById("assoconnect-import-button");
+
+    const resultDiv = document.getElementById("assoconnect-import-result");
+
+    if (button) {
+      button.disabled = false;
+
+      button.textContent = "Importer";
+    }
+
+    document
+      .querySelectorAll("#assoconnect-import-files select")
+      .forEach((select) => {
+        select.disabled = false;
+      });
+
+    if (resultDiv) {
+      resultDiv.style.display = "none";
+
+      resultDiv.textContent = "";
+    }
+
+    showAssoConnectImportError(error);
+  }
+
+  /**
+   * Affichage des erreurs
+   * AssoConnect.
+   */
+  function showAssoConnectImportError(error) {
+    const loading = document.getElementById("assoconnect-import-loading");
+
+    const errorDiv = document.getElementById("assoconnect-import-error");
+
+    if (loading) {
+      loading.style.display = "none";
+    }
+
+    if (errorDiv) {
+      errorDiv.style.display = "block";
+
+      errorDiv.textContent =
+        error.message || error || "Une erreur est survenue.";
+    }
+  }
+  /* =========================
+   ADHESIONS - FBI / FFBB
+   ========================= */
+
+  let fbiExports = [];
+
+  let fbiImportRunning = false;
+
+  /**
+   * Charge les exports FBI
+   * disponibles pour la saison.
+   */
+  function loadFbiExports() {
+    if (fbiImportRunning) {
+      return;
+    }
+
+    const loading = document.getElementById("fbi-import-loading");
+
+    const content = document.getElementById("fbi-import-content");
+
+    const error = document.getElementById("fbi-import-error");
+
+    const result = document.getElementById("fbi-import-result");
+
+    if (!loading || !content) {
+      return;
+    }
+
+    loading.style.display = "block";
+
+    loading.textContent = "Chargement des exports...";
+
+    content.style.display = "none";
+
+    if (error) {
+      error.style.display = "none";
+
+      error.textContent = "";
+    }
+
+    if (result) {
+      result.style.display = "none";
+
+      result.innerHTML = "";
+    }
+
+    google.script.run
+
+      .withSuccessHandler(displayFbiExports)
+
+      .withFailureHandler(showFbiImportError)
+
+      .getFbiImportFiles("2026-2027");
+  }
+
+  /**
+   * Affiche les fichiers FBI.
+   */
+  function displayFbiExports(exports) {
+    fbiExports = exports || [];
+
+    const tbody = document.getElementById("fbi-import-files");
+
+    const loading = document.getElementById("fbi-import-loading");
+
+    const content = document.getElementById("fbi-import-content");
+
+    if (!tbody) {
+      return;
+    }
+
+    tbody.innerHTML = "";
+
+    if (fbiExports.length === 0) {
+      const tr = document.createElement("tr");
+
+      const td = document.createElement("td");
+
+      td.colSpan = 2;
+
+      td.textContent = "Aucun export FBI trouvé.";
+
+      tr.appendChild(td);
+
+      tbody.appendChild(tr);
+    } else {
+      fbiExports.forEach((file) => {
+        const tr = document.createElement("tr");
+
+        /*
+         * Nom du fichier.
+         */
+
+        const nameTd = document.createElement("td");
+
+        nameTd.textContent = file.name || "—";
+
+        /*
+         * Type FBI.
+         */
+
+        const typeTd = document.createElement("td");
+
+        if (file.type === "PREINSCRIPTION") {
+          typeTd.innerHTML = `
+              <span
+                class="status-badge status-active"
+              >
+                Préinscriptions
+              </span>
+            `;
+        } else if (file.type === "LICENCE") {
+          typeTd.innerHTML = `
+              <span
+                class="status-badge status-active"
+              >
+                Licences
+              </span>
+            `;
+        } else {
+          typeTd.textContent = file.type || "—";
+        }
+
+        tr.appendChild(nameTd);
+
+        tr.appendChild(typeTd);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    if (loading) {
+      loading.style.display = "none";
+    }
+
+    if (content) {
+      content.style.display = "block";
+    }
+  }
+
+  /**
+   * Lance l'import FBI puis
+   * la synchronisation avec
+   * Contacts / Adhesions.
+   */
+  function synchronizeFbiImport() {
+    if (fbiImportRunning) {
+      return;
+    }
+
+    if (!fbiExports || fbiExports.length === 0) {
+      showFbiImportError({
+        message: "Aucun export FBI à synchroniser.",
+      });
+
+      return;
+    }
+
+    const hasPreinscription = fbiExports.some(
+      (file) => file.type === "PREINSCRIPTION",
+    );
+
+    const hasLicence = fbiExports.some((file) => file.type === "LICENCE");
+
+    /*
+     * On exige les deux sources
+     * pour éviter de remplacer
+     * le cache FBI avec un export
+     * incomplet.
+     */
+
+    if (!hasPreinscription || !hasLicence) {
+      showFbiImportError({
+        message:
+          "Les exports Préinscriptions et Licences sont tous les deux nécessaires.",
+      });
+
+      return;
+    }
+
+    const button = document.getElementById("fbi-import-button");
+
+    const result = document.getElementById("fbi-import-result");
+
+    const error = document.getElementById("fbi-import-error");
+
+    fbiImportRunning = true;
+
+    if (button) {
+      button.disabled = true;
+
+      button.textContent = "Synchronisation...";
+    }
+
+    if (error) {
+      error.style.display = "none";
+
+      error.textContent = "";
+    }
+
+    if (result) {
+      result.style.display = "block";
+
+      result.textContent = "Lecture et import des exports FBI...";
+    }
+
+    /*
+     * Etape 1 :
+     * reconstruction du cache Import_FBI.
+     */
+
+    google.script.run
+
+      .withSuccessHandler(handleFbiImportSuccess)
+
+      .withFailureHandler(handleFbiImportFailure)
+
+      .importFbi("2026-2027");
+  }
+
+  /**
+   * L'import du cache FBI
+   * est terminé.
+   *
+   * On lance maintenant
+   * la synchronisation métier.
+   */
+  function handleFbiImportSuccess(importResult) {
+    const result = document.getElementById("fbi-import-result");
+
+    if (result) {
+      result.style.display = "block";
+
+      result.textContent =
+        "Exports FBI importés. Synchronisation des adhésions...";
+    }
+
+    google.script.run
+
+      .withSuccessHandler((syncResult) => {
+        handleFbiSyncSuccess(importResult, syncResult);
+      })
+
+      .withFailureHandler(handleFbiImportFailure)
+
+      .syncFbiToAdhesions("2026-2027");
+  }
+
+  /**
+   * Import et synchronisation
+   * terminés.
+   */
+  function handleFbiSyncSuccess(importResult, syncResult) {
+    fbiImportRunning = false;
+
+    const button = document.getElementById("fbi-import-button");
+
+    const result = document.getElementById("fbi-import-result");
+
+    if (button) {
+      button.disabled = false;
+
+      button.textContent = "Synchroniser FBI";
+    }
+
+    const statuses = syncResult.statuses || {};
+
+    const licenceGeneree = Number(statuses.LICENCE_GENEREE || 0);
+
+    const attenteValidation = Number(statuses.ATTENTE_VALIDATION_CLUB || 0);
+
+    const enCoursSaisie = Number(statuses.EN_COURS_SAISIE || 0);
+
+    const attenteSaisie = Number(statuses.ATTENTE_SAISIE || 0);
+
+    const aEnvoyer = Number(statuses.A_ENVOYER || 0);
+
+    const aVerifier = Number(statuses.A_VERIFIER || 0);
+
+    if (result) {
+      result.style.display = "block";
+
+      result.innerHTML = `
+        <strong>
+          Synchronisation terminée.
+        </strong>
+
+        <div
+          style="
+            margin-top:8px;
+            line-height:1.6;
+          "
+        >
+
+          ${Number(importResult.rows || 0)}
+          ligne(s) FBI importée(s)
+          <br>
+
+          ${licenceGeneree}
+          licence(s) générée(s)
+          <br>
+
+          ${attenteValidation}
+          en attente de validation club
+          <br>
+
+          ${enCoursSaisie}
+          en cours de saisie
+          <br>
+
+          ${attenteSaisie}
+          en attente de saisie adhérent
+          <br>
+
+          ${aEnvoyer}
+          à envoyer
+
+          ${
+            aVerifier > 0
+              ? `
+                  <br>
+                  <strong>
+                    ${aVerifier}
+                    à vérifier
+                  </strong>
+                `
+              : ""
+          }
+
+        </div>
+      `;
+    }
+
+    /*
+     * Les statuts licence viennent
+     * de changer : on recharge
+     * l'écran principal.
+     */
+
+    refreshAdhesions();
+  }
+
+  /**
+   * Echec de l'import ou de
+   * la synchronisation FBI.
+   */
+  function handleFbiImportFailure(error) {
+    fbiImportRunning = false;
+
+    const button = document.getElementById("fbi-import-button");
+
+    const result = document.getElementById("fbi-import-result");
+
+    if (button) {
+      button.disabled = false;
+
+      button.textContent = "Synchroniser FBI";
+    }
+
+    if (result) {
+      result.style.display = "none";
+
+      result.innerHTML = "";
+    }
+
+    showFbiImportError(error);
+  }
+
+  /**
+   * Affiche une erreur FBI.
+   */
+  function showFbiImportError(error) {
+    const loading = document.getElementById("fbi-import-loading");
+
+    const errorDiv = document.getElementById("fbi-import-error");
+
+    if (loading) {
+      loading.style.display = "none";
+    }
+
+    if (errorDiv) {
+      errorDiv.style.display = "block";
+
+      errorDiv.textContent =
+        error.message ||
+        error ||
+        "Une erreur est survenue lors de la synchronisation FBI.";
+    }
+  }
+
+  /* =========================
+   ADHESIONS
+   ========================= */
+
+  let adhesionsData = [];
+
+  let currentAdhesionId = null;
+
+  /**
+   * Charge les adhésions
+   * de la saison courante.
+   */
+  function loadAdhesions() {
+    const loading = document.getElementById("adhesions-loading");
+
+    const error = document.getElementById("adhesions-error");
+
+    const container = document.getElementById("adhesions-table-container");
+
+    if (!loading || !error || !container) {
+      return;
+    }
+
+    loading.style.display = "block";
+
+    error.style.display = "none";
+
+    container.style.display = "none";
+
+    google.script.run
+
+      .withSuccessHandler((adhesions) => {
+        adhesionsData = adhesions || [];
+
+        loading.style.display = "none";
+
+        container.style.display = "block";
+
+        populateAdhesionCategories();
+
+        displayAdhesionsDashboard();
+
+        filterAdhesions();
+      })
+
+      .withFailureHandler((err) => {
+        loading.style.display = "none";
+
+        error.style.display = "block";
+
+        error.textContent =
+          "Impossible de charger les adhésions : " + (err.message || err);
+      })
+
+      .getAdhesions("2026-2027");
+  }
+
+  /**
+   * Recharge silencieusement
+   * les adhésions.
+   *
+   * Utilisé après une modification.
+   */
+  function refreshAdhesions() {
+    google.script.run
+
+      .withSuccessHandler((adhesions) => {
+        adhesionsData = adhesions || [];
+
+        populateAdhesionCategories();
+
+        displayAdhesionsDashboard();
+
+        filterAdhesions();
+      })
+
+      .withFailureHandler((err) => {
+        console.error("Erreur actualisation adhésions :", err);
+      })
+
+      .getAdhesions("2026-2027");
+  }
+
+  /**
+   * Remplit automatiquement
+   * le filtre des catégories.
+   */
+  function populateAdhesionCategories() {
+    const select = document.getElementById("adhesions-category-filter");
+
+    if (!select) {
+      return;
+    }
+
+    const currentValue = select.value;
+
+    const categories = [
+      ...new Set(
+        adhesionsData.map((adhesion) => adhesion.Categorie).filter(Boolean),
+      ),
+    ];
+
+    categories.sort((a, b) =>
+      a.localeCompare(b, "fr", {
+        numeric: true,
+      }),
+    );
+
+    select.innerHTML = `
+      <option value="">
+        Toutes les catégories
+      </option>
+    `;
+
+    categories.forEach((categorie) => {
+      const option = document.createElement("option");
+
+      option.value = categorie;
+
+      option.textContent = categorie;
+
+      select.appendChild(option);
+    });
+
+    select.value = currentValue;
+  }
+
+  /* =========================
+   DASHBOARD ADHESIONS
+   ========================= */
+
+  /**
+   * Construit le dashboard
+   * de progression.
+   */
+  function displayAdhesionsDashboard() {
+    const container = document.getElementById("adhesions-dashboard");
+
+    const loading = document.getElementById("adhesions-dashboard-loading");
+
+    if (!container) {
+      return;
+    }
+
+    if (loading) {
+      loading.style.display = "none";
+    }
+
+    if (!adhesionsData || adhesionsData.length === 0) {
+      container.innerHTML = `
+        <div class="adhesion-dashboard-empty">
+          Aucune adhésion.
+        </div>
+      `;
+
+      container.style.display = "block";
+
+      return;
+    }
+
+    /*
+     * Catégories.
+     */
+
+    const categories = {};
+
+    adhesionsData.forEach((adhesion) => {
+      const categorie = adhesion.Categorie || "Sans catégorie";
+
+      if (!categories[categorie]) {
+        categories[categorie] = [];
+      }
+
+      categories[categorie].push(adhesion);
+    });
+
+    /*
+     * Tri naturel :
+     * U7, U9, U11...
+     */
+
+    const categoryNames = Object.keys(categories);
+
+    categoryNames.sort((a, b) =>
+      a.localeCompare(b, "fr", {
+        numeric: true,
+      }),
+    );
+
+    /*
+     * Ligne TOTAL.
+     */
+
+    const totalStats = calculateAdhesionDashboardStats(adhesionsData);
+
+    let html = `
+      ${renderAdhesionDashboardRow("TOTAL", "", totalStats, true)}
+
+      <div
+        class="adhesion-dashboard-separator"
+      >
+      </div>
+    `;
+
+    /*
+     * Lignes catégories.
+     */
+
+    categoryNames.forEach((categorie) => {
+      const stats = calculateAdhesionDashboardStats(categories[categorie]);
+
+      html += renderAdhesionDashboardRow(categorie, categorie, stats, false);
+    });
+
+    container.innerHTML = html;
+
+    container.style.display = "block";
+
+    updateAdhesionDashboardSelection();
+  }
+
+  /**
+   * Calcule les statistiques
+   * d'un ensemble d'adhésions.
+   *
+   * Le pourcentage est basé sur
+   * les contrôles administratifs,
+   * pas sur une moyenne des
+   * pourcentages individuels.
+   */
+  function calculateAdhesionDashboardStats(adhesions) {
+    let controlesValides = 0;
+
+    let controlesTotal = 0;
+
+    let terminees = 0;
+
+    adhesions.forEach((adhesion) => {
+      controlesValides += Number(adhesion.Suivi_controles_valides || 0);
+
+      controlesTotal += Number(adhesion.Suivi_controles_total || 0);
+
+      if (adhesion.Suivi_statut === "OK") {
+        terminees++;
+      }
+    });
+
+    const progression =
+      controlesTotal > 0
+        ? Math.round((controlesValides / controlesTotal) * 100)
+        : 0;
+
+    return {
+      progression: progression,
+
+      terminees: terminees,
+
+      total: adhesions.length,
+
+      controlesValides: controlesValides,
+
+      controlesTotal: controlesTotal,
+    };
+  }
+
+  /**
+   * Génère une ligne du dashboard.
+   */
+  function renderAdhesionDashboardRow(label, category, stats, isTotal) {
+    const progression = Math.max(
+      0,
+      Math.min(100, Number(stats.progression || 0)),
+    );
+
+    const complete = progression === 100;
+
+    return `
+    <button
+      type="button"
+      class="
+        adhesion-dashboard-row
+        ${isTotal ? "adhesion-dashboard-total" : ""}
+      "
+      data-category="${escapeHtml(category)}"
+      onclick="filterAdhesionsFromDashboard('${escapeJs(category)}')"
+    >
+
+      <div
+        class="adhesion-dashboard-category"
+      >
+
+        ${escapeHtml(label)}
+
+      </div>
+
+
+      <div
+        class="adhesion-dashboard-progress"
+      >
+
+        <div
+          class="adhesion-dashboard-progress-track"
+        >
+
+          <div
+            class="
+              adhesion-dashboard-progress-value
+              ${complete ? "complete" : ""}
+            "
+            style="
+              width:${progression}%;
+            "
+          >
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div
+        class="adhesion-dashboard-percentage"
+      >
+
+        ${progression} %
+
+      </div>
+
+
+      <div
+        class="adhesion-dashboard-complete"
+      >
+
+        <strong>
+          ${stats.terminees}
+        </strong>
+
+        /
+
+        ${stats.total}
+
+        terminée${stats.total > 1 ? "s" : ""}
+
+      </div>
+
+    </button>
+  `;
+  }
+
+  /**
+   * Filtre le tableau depuis
+   * une ligne du dashboard.
+   */
+  function filterAdhesionsFromDashboard(category) {
+    const select = document.getElementById("adhesions-category-filter");
+
+    if (!select) {
+      return;
+    }
+
+    select.value = category;
+
+    filterAdhesions();
+
+    updateAdhesionDashboardSelection();
+  }
+
+  /**
+   * Met visuellement en évidence
+   * la catégorie actuellement
+   * sélectionnée.
+   */
+  function updateAdhesionDashboardSelection() {
+    const select = document.getElementById("adhesions-category-filter");
+
+    if (!select) {
+      return;
+    }
+
+    const selectedCategory = select.value;
+
+    document.querySelectorAll(".adhesion-dashboard-row").forEach((row) => {
+      row.classList.toggle(
+        "selected",
+        row.dataset.category === selectedCategory,
+      );
+    });
+  }
+
+  /**
+   * Filtre le tableau.
+   */
+  function filterAdhesions() {
+    const searchInput = document.getElementById("adhesions-search");
+
+    const categoryInput = document.getElementById("adhesions-category-filter");
+
+    const statusInput = document.getElementById("adhesions-status-filter");
+
+    if (!searchInput || !categoryInput || !statusInput) {
+      return;
+    }
+
+    const search = searchInput.value.trim().toLowerCase();
+
+    const category = categoryInput.value;
+
+    const status = statusInput.value;
+
+    const filtered = adhesionsData.filter((adhesion) => {
+      const identity = (adhesion.Prenom + " " + adhesion.Nom).toLowerCase();
+
+      if (search && !identity.includes(search)) {
+        return false;
+      }
+
+      if (category && adhesion.Categorie !== category) {
+        return false;
+      }
+
+      if (status && adhesion.Suivi_statut !== status) {
+        return false;
+      }
+
+      return true;
+    });
+
+    displayAdhesions(filtered);
+
+    displayAdhesionsSummary(filtered);
+
+    updateAdhesionDashboardSelection();
+  }
+
+  /* =========================
+   TABLEAU ADHESIONS
+   ========================= */
+
+  /**
+   * Affiche les lignes.
+   */
+  function displayAdhesions(adhesions) {
+    const tbody = document.getElementById("adhesions-table-body");
+
+    if (!tbody) {
+      return;
+    }
+
+    tbody.innerHTML = "";
+
+    adhesions.forEach((adhesion) => {
+      const tr = document.createElement("tr");
+
+      tr.dataset.adhesionId = adhesion.Adhesion_id;
+
+      tr.innerHTML = `
+          <td>
+
+            <button
+              type="button"
+              class="adhesion-name-button"
+              onclick="openAdhesionDetail('${escapeJs(adhesion.Adhesion_id)}')"
+            >
+
+              ${escapeHtml(adhesion.Prenom)}
+
+              ${escapeHtml(adhesion.Nom)}
+
+            </button>
+
+          </td>
+
+
+          <td>
+
+            ${escapeHtml(adhesion.Categorie)}
+
+          </td>
+
+
+          <td>
+
+            ${renderAdhesionAssoConnect(adhesion)}
+
+          </td>
+
+
+          <td>
+
+            ${renderAdhesionPayment(adhesion)}
+
+          </td>
+
+
+          <td>
+
+            ${renderQuickTriStateSelect(
+              adhesion,
+              "AtoutSport_recu",
+              adhesion.AtoutSport_recu,
+              adhesion.AtoutSport_demande,
+            )}
+
+          </td>
+
+
+          <td>
+
+            ${renderQuickTriStateSelect(
+              adhesion,
+              "PassSport_recu",
+              adhesion.PassSport_recu,
+              adhesion.PassSport_demande,
+            )}
+
+          </td>
+
+
+          <td>
+
+            ${renderQuickArbitrageSelect(adhesion)}
+
+          </td>
+
+
+          <td>
+
+            ${renderQuickYesNoSelect(
+              adhesion,
+              "SportEasy_ok",
+              adhesion.SportEasy_ok,
+            )}
+
+          </td>
+
+
+          <td>
+
+            ${renderLicenceStatus(adhesion)}
+
+          </td>
+
+
+          <td>
+
+            ${renderAdhesionFollowUp(adhesion)}
+
+          </td>
+        `;
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  /**
+   * Résumé du tableau affiché.
+   */
+  function displayAdhesionsSummary(adhesions) {
+    const container = document.getElementById("adhesions-summary");
+
+    if (!container) {
+      return;
+    }
+
+    const total = adhesions.length;
+
+    const aTraiter = adhesions.filter(
+      (adhesion) => adhesion.Suivi_statut === "A_TRAITER",
+    ).length;
+
+    const ok = adhesions.filter(
+      (adhesion) => adhesion.Suivi_statut === "OK",
+    ).length;
+
+    container.innerHTML = `
+      <span>
+        <strong>${total}</strong>
+        adhésion(s)
+      </span>
+
+      <span>
+        <strong>${aTraiter}</strong>
+        à traiter
+      </span>
+
+      <span>
+        <strong>${ok}</strong>
+        terminée(s)
+      </span>
+    `;
+  }
+
+  /* =========================
+   EDITION RAPIDE
+   ========================= */
+
+  /**
+   * Dropdown AtoutSport /
+   * Pass'Sport.
+   */
+  function renderQuickTriStateSelect(adhesion, field, value, requested) {
+    let normalized = String(value || "").toUpperCase();
+
+    /*
+     * Valeurs autorisées :
+     *
+     * ""    = À renseigner
+     * OUI   = Donné
+     * NON   = Non donné
+     * NA    = Non applicable
+     */
+
+    if (normalized !== "OUI" && normalized !== "NON" && normalized !== "NA") {
+      normalized = "";
+    }
+
+    return `
+    <select
+      class="
+        adhesion-quick-select
+        ${getTriStateSelectClass(normalized)}
+      "
+      data-adhesion-id="${escapeHtml(adhesion.Adhesion_id)}"
+      data-field="${escapeHtml(field)}"
+      data-previous-value="${escapeHtml(normalized)}"
+      onchange="saveQuickAdhesionField(this)"
+      title="${
+        requested === "Oui"
+          ? "Déclaré dans AssoConnect"
+          : "Non déclaré dans AssoConnect"
+      }"
+    >
+
+      <option
+        value=""
+        ${normalized === "" ? "selected" : ""}
+      >
+        À renseigner
+      </option>
+
+      <option
+        value="OUI"
+        ${normalized === "OUI" ? "selected" : ""}
+      >
+        Donné
+      </option>
+
+      <option
+        value="NON"
+        ${normalized === "NON" ? "selected" : ""}
+      >
+        Non donné
+      </option>
+
+      <option
+        value="NA"
+        ${normalized === "NA" ? "selected" : ""}
+      >
+        Non applicable
+      </option>
+
+    </select>
+  `;
+  }
+
+  /**
+   * Dropdown arbitrage.
+   */
+  function renderQuickArbitrageSelect(adhesion) {
+    let value = String(adhesion.Caution_arbitrage_statut || "")
+      .trim()
+      .toUpperCase();
+
+    if (value !== "OUI" && value !== "NON" && value !== "NA") {
+      value = "";
+    }
+
+    return `
+    <select
+      class="
+        adhesion-quick-select
+        ${getTriStateSelectClass(value)}
+      "
+      data-adhesion-id="${escapeHtml(adhesion.Adhesion_id)}"
+      data-field="Caution_arbitrage_statut"
+      data-previous-value="${escapeHtml(value)}"
+      onchange="saveQuickAdhesionField(this)"
+    >
+
+      <option
+        value=""
+        ${value === "" ? "selected" : ""}
+      >
+        À renseigner
+      </option>
+
+      <option
+        value="OUI"
+        ${value === "OUI" ? "selected" : ""}
+      >
+        Donné
+      </option>
+
+      <option
+        value="NON"
+        ${value === "NON" ? "selected" : ""}
+      >
+        Non donné
+      </option>
+
+      <option
+        value="NA"
+        ${value === "NA" ? "selected" : ""}
+      >
+        Non applicable
+      </option>
+
+    </select>
+  `;
+  }
+
+  /**
+   * Dropdown Oui / Non.
+   *
+   * SportEasy pour l'instant.
+   */
+  function renderQuickYesNoSelect(adhesion, field, value) {
+    const normalized = value === "Oui" ? "Oui" : "Non";
+
+    const cssClass =
+      normalized === "Oui" ? "adhesion-quick-success" : "adhesion-quick-danger";
+
+    return `
+    <select
+      class="
+        adhesion-quick-select
+        ${cssClass}
+      "
+      data-adhesion-id="${escapeHtml(adhesion.Adhesion_id)}"
+      data-field="${escapeHtml(field)}"
+      data-previous-value="${escapeHtml(normalized)}"
+      onchange="saveQuickAdhesionField(this)"
+    >
+
+      <option
+        value="Non"
+        ${normalized === "Non" ? "selected" : ""}
+      >
+        À faire
+      </option>
+
+      <option
+        value="Oui"
+        ${normalized === "Oui" ? "selected" : ""}
+      >
+        OK
+      </option>
+
+    </select>
+  `;
+  }
+
+  /**
+   * Classe visuelle d'un statut
+   * tri-état.
+   */
+  function getTriStateSelectClass(value) {
+    if (value === "OUI") {
+      return "adhesion-quick-success";
+    }
+
+    if (value === "NON") {
+      return "adhesion-quick-danger";
+    }
+
+    if (value === "NA") {
+      return "adhesion-quick-neutral";
+    }
+
+    return "adhesion-quick-warning";
+  }
+
+  /**
+   * Sauvegarde immédiate d'un
+   * champ depuis le tableau.
+   */
+  function saveQuickAdhesionField(select) {
+    const adhesionId = select.dataset.adhesionId;
+
+    const field = select.dataset.field;
+
+    const previousValue = select.dataset.previousValue;
+
+    const newValue = select.value;
+
+    if (!adhesionId || !field || newValue === previousValue) {
+      return;
+    }
+
+    const data = {};
+
+    data[field] = newValue;
+
+    /*
+     * Si on marque la caution
+     * comme donnée, les deux
+     * chèques sont considérés reçus.
+     *
+     * Inversement NON = 0.
+     */
+
+    if (field === "Caution_arbitrage_statut") {
+      if (newValue === "OUI") {
+        data.Cautions_arbitrage_recues = 2;
+      } else if (newValue === "NON" || newValue === "NA") {
+        data.Cautions_arbitrage_recues = 0;
+      }
+    }
+
+    select.disabled = true;
+
+    select.classList.add("adhesion-quick-saving");
+
+    google.script.run
+
+      .withSuccessHandler(() => {
+        select.dataset.previousValue = newValue;
+
+        select.disabled = false;
+
+        select.classList.remove("adhesion-quick-saving");
+
+        refreshAdhesions();
+      })
+
+      .withFailureHandler((err) => {
+        select.value = previousValue;
+
+        select.disabled = false;
+
+        select.classList.remove("adhesion-quick-saving");
+
+        alert("Impossible d'enregistrer : " + (err.message || err));
+      })
+
+      .saveAdhesionFollowUp(adhesionId, data);
+  }
+
+  /* =========================
+   FICHE ADHESION
+   ========================= */
+
+  /**
+   * Ouvre le panneau latéral.
+   */
+  function openAdhesionDetail(adhesionId) {
+    const adhesion = adhesionsData.find(
+      (item) => item.Adhesion_id === adhesionId,
+    );
+
+    if (!adhesion) {
+      return;
+    }
+
+    currentAdhesionId = adhesionId;
+
+    document.getElementById("adhesion-detail-name").textContent = [
+      adhesion.Prenom,
+      adhesion.Nom,
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    document.getElementById("adhesion-detail-category").textContent =
+      adhesion.Categorie || "";
+
+    document.getElementById("adhesion-detail-id").textContent =
+      adhesion.Adhesion_id || "";
+
+    document.getElementById("adhesion-detail-assoconnect").innerHTML =
+      renderAdhesionAssoConnect(adhesion);
+
+    document.getElementById("adhesion-detail-payment-source").textContent =
+      adhesion.Statut_paiement || "—";
+
+    document.getElementById(
+      "adhesion-detail-payment-method-source",
+    ).textContent = adhesion.Moyen_paiement || "—";
+
+    document.getElementById("adhesion-detail-amount").textContent =
+      formatAdhesionAmount(adhesion.Montant_du);
+
+    document.getElementById("adhesion-detail-payment-received").value =
+      adhesion.Paiement_hors_ligne_recu === "Oui" ? "Oui" : "Non";
+
+    const manualMethods = String(adhesion.Moyens_paiement_manuel || "")
+      .split("|")
+      .map((value) => value.trim());
+
+    document.getElementById("adhesion-detail-payment-cheque").checked =
+      manualMethods.includes("CHEQUE");
+
+    document.getElementById("adhesion-detail-payment-cash").checked =
+      manualMethods.includes("ESPECES");
+
+    document.getElementById("adhesion-detail-payment-ancv").checked =
+      manualMethods.includes("ANCV");
+
+    document.getElementById("adhesion-detail-payment-amount").value =
+      adhesion.Montant_paiement_manuel_recu || "";
+
+    document.getElementById("adhesion-detail-atoutsport").value =
+      getAdhesionTriStateValue(
+        adhesion.AtoutSport_recu,
+        adhesion.AtoutSport_demande,
+      );
+
+    document.getElementById(
+      "adhesion-detail-atoutsport-requested",
+    ).textContent =
+      adhesion.AtoutSport_demande === "Oui"
+        ? "Déclaré lors de l'inscription"
+        : "Non déclaré lors de l'inscription";
+
+    document.getElementById("adhesion-detail-passsport").value =
+      getAdhesionTriStateValue(
+        adhesion.PassSport_recu,
+        adhesion.PassSport_demande,
+      );
+
+    document.getElementById("adhesion-detail-passsport-requested").textContent =
+      adhesion.PassSport_demande === "Oui"
+        ? "Déclaré lors de l'inscription"
+        : "Non déclaré lors de l'inscription";
+
+    document.getElementById("adhesion-detail-arbitrage").value =
+      getArbitrageTriStateValue(adhesion);
+
+    document.getElementById("adhesion-detail-arbitrage-count").value = String(
+      Number(adhesion.Cautions_arbitrage_recues || 0),
+    );
+
+    document.getElementById("adhesion-detail-sporteasy").value =
+      adhesion.SportEasy_ok === "Oui" ? "Oui" : "Non";
+
+    document.getElementById("adhesion-detail-sporteasy-team").value =
+      adhesion.SportEasy_equipe || "";
+
+    document.getElementById("adhesion-detail-licence").value =
+      adhesion.Licence_statut || "";
+
+    document.getElementById("adhesion-detail-comment").value =
+      adhesion.Commentaire || "";
+
+    const error = document.getElementById("adhesion-detail-error");
+
+    if (error) {
+      error.style.display = "none";
+
+      error.textContent = "";
+    }
+
+    document.getElementById("adhesion-detail-overlay").classList.add("open");
+
+    const panel = document.getElementById("adhesion-detail-panel");
+
+    panel.classList.add("open");
+
+    panel.setAttribute("aria-hidden", "false");
+  }
+
+  /**
+   * Ferme le panneau.
+   */
+  function closeAdhesionDetail() {
+    currentAdhesionId = null;
+
+    const overlay = document.getElementById("adhesion-detail-overlay");
+
+    const panel = document.getElementById("adhesion-detail-panel");
+
+    if (overlay) {
+      overlay.classList.remove("open");
+    }
+
+    if (panel) {
+      panel.classList.remove("open");
+
+      panel.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  /**
+   * Clic sur le fond.
+   */
+  function handleAdhesionOverlayClick() {
+    closeAdhesionDetail();
+  }
+
+  /**
+   * Enregistre la fiche complète.
+   */
+  function saveAdhesionDetail() {
+    if (!currentAdhesionId) {
+      return;
+    }
+
+    const button = document.getElementById("adhesion-detail-save");
+
+    const saving = document.getElementById("adhesion-detail-saving");
+
+    const error = document.getElementById("adhesion-detail-error");
+
+    const paymentMethods = [];
+
+    if (document.getElementById("adhesion-detail-payment-cheque").checked) {
+      paymentMethods.push("CHEQUE");
+    }
+
+    if (document.getElementById("adhesion-detail-payment-cash").checked) {
+      paymentMethods.push("ESPECES");
+    }
+
+    if (document.getElementById("adhesion-detail-payment-ancv").checked) {
+      paymentMethods.push("ANCV");
+    }
+
+    const arbitrageStatus = document.getElementById(
+      "adhesion-detail-arbitrage",
+    ).value;
+
+    const arbitrationCount = Number(
+      document.getElementById("adhesion-detail-arbitrage-count").value,
+    );
+
+    const data = {
+      Paiement_hors_ligne_recu: document.getElementById(
+        "adhesion-detail-payment-received",
+      ).value,
+
+      Moyens_paiement_manuel: paymentMethods,
+
+      Montant_paiement_manuel_recu: document.getElementById(
+        "adhesion-detail-payment-amount",
+      ).value,
+
+      AtoutSport_recu: document.getElementById("adhesion-detail-atoutsport")
+        .value,
+
+      PassSport_recu: document.getElementById("adhesion-detail-passsport")
+        .value,
+
+      Caution_arbitrage_statut: arbitrageStatus,
+
+      Cautions_arbitrage_recues: arbitrationCount,
+
+      SportEasy_ok: document.getElementById("adhesion-detail-sporteasy").value,
+
+      SportEasy_equipe: document.getElementById(
+        "adhesion-detail-sporteasy-team",
+      ).value,
+
+      Licence_statut: document.getElementById("adhesion-detail-licence").value,
+
+      Commentaire: document.getElementById("adhesion-detail-comment").value,
+    };
+
+    if (button) {
+      button.disabled = true;
+    }
+
+    if (saving) {
+      saving.style.display = "block";
+    }
+
+    if (error) {
+      error.style.display = "none";
+
+      error.textContent = "";
+    }
+
+    google.script.run
+
+      .withSuccessHandler(() => {
+        if (button) {
+          button.disabled = false;
+        }
+
+        if (saving) {
+          saving.style.display = "none";
+        }
+
+        closeAdhesionDetail();
+
+        refreshAdhesions();
+      })
+
+      .withFailureHandler((err) => {
+        if (button) {
+          button.disabled = false;
+        }
+
+        if (saving) {
+          saving.style.display = "none";
+        }
+
+        if (error) {
+          error.style.display = "block";
+
+          error.textContent = err.message || err;
+        }
+      })
+
+      .saveAdhesionFollowUp(currentAdhesionId, data);
+  }
+
+  /* =========================
+   VALEURS ADHESION
+   ========================= */
+  function getAdhesionTriStateValue(value) {
+    const normalized = String(value || "")
+      .trim()
+      .toUpperCase();
+
+    if (normalized === "OUI" || normalized === "NON" || normalized === "NA") {
+      return normalized;
+    }
+
+    return "";
+  }
+
+  function getArbitrageTriStateValue(adhesion) {
+    const value = String(adhesion.Caution_arbitrage_statut || "")
+      .trim()
+      .toUpperCase();
+
+    if (value === "OUI" || value === "NON" || value === "NA") {
+      return value;
+    }
+
+    return "";
+  }
+
+  /* =========================
+   AFFICHAGE STATUTS ADHESIONS
+   ========================= */
+
+  /**
+   * Statut AssoConnect.
+   */
+  function renderAdhesionAssoConnect(adhesion) {
+    if (adhesion.Statut_assoconnect === "VALIDE") {
+      return renderStatusBadge("Validé", "success");
+    }
+
+    if (adhesion.Statut_assoconnect === "ATTENTE_PAIEMENT") {
+      return renderStatusBadge("Paiement", "danger");
+    }
+
+    if (adhesion.Statut_assoconnect === "ATTENTE_VALIDATION") {
+      return renderStatusBadge("À valider", "danger");
+    }
+
+    return renderStatusBadge("—", "neutral");
+  }
+
+  /**
+   * Paiement.
+   *
+   * On conserve volontairement
+   * pour l'instant la logique
+   * actuelle.
+   *
+   * La détection CB / hors ligne
+   * sera traitée après analyse
+   * des valeurs AssoConnect.
+   */
+  function renderAdhesionPayment(adhesion) {
+    const received =
+      adhesion.Statut_assoconnect === "VALIDE" ||
+      adhesion.Paiement_hors_ligne_recu === "Oui";
+
+    let detail = adhesion.Moyen_paiement || "";
+
+    if (adhesion.Moyens_paiement_manuel) {
+      detail = String(adhesion.Moyens_paiement_manuel)
+        .split("|")
+        .map(formatPaymentMethod)
+        .join(" + ");
+    }
+
+    return `
+    <div class="adhesion-payment-cell">
+
+      ${renderStatusBadge(
+        received ? "Reçu" : "Non reçu",
+        received ? "success" : "danger",
+      )}
+
+      ${
+        detail
+          ? `
+              <div class="adhesion-payment-detail">
+                ${escapeHtml(detail)}
+              </div>
+            `
+          : ""
+      }
+
+    </div>
+  `;
+  }
+
+  function formatPaymentMethod(value) {
+    const normalized = String(value || "").toUpperCase();
+
+    if (normalized === "CHEQUE") {
+      return "Chèque";
+    }
+
+    if (normalized === "ESPECES") {
+      return "Espèces";
+    }
+
+    if (normalized === "ANCV") {
+      return "ANCV";
+    }
+
+    if (normalized === "CB") {
+      return "CB";
+    }
+
+    return value;
+  }
+
+  /**
+   * Statut licence.
+   *
+   * Temporaire jusqu'à la
+   * structuration des statuts FBI.
+   */
+  function renderLicenceStatus(adhesion) {
+    if (!adhesion.Licence_statut) {
+      return renderStatusBadge("À vérifier", "danger");
+    }
+
+    return renderStatusBadge(adhesion.Licence_statut, "success");
+  }
+
+  /**
+   * Suivi global.
+   */
+  function renderAdhesionFollowUp(adhesion) {
+    const progression = Number(adhesion.Suivi_progression || 0);
+
+    const complete = progression === 100;
+
+    const actions = Array.isArray(adhesion.Suivi_actions)
+      ? adhesion.Suivi_actions
+      : [];
+
+    const tooltip =
+      actions.length > 0 ? actions.join(" • ") : "Adhésion complète";
+
+    const controlesValides = Number(adhesion.Suivi_controles_valides || 0);
+
+    const controlesTotal = Number(adhesion.Suivi_controles_total || 6);
+
+    return `
+    <div
+      class="adhesion-progress"
+      title="${escapeHtml(tooltip)}"
+    >
+
+      <div
+        class="adhesion-progress-header"
+      >
+
+        <span>
+          ${progression} %
+        </span>
+
+        <span>
+          ${controlesValides}
+          /
+          ${controlesTotal}
+        </span>
+
+      </div>
+
+
+      <div
+        class="adhesion-progress-track"
+      >
+
+        <div
+          class="
+            adhesion-progress-value
+            ${complete ? "complete" : ""}
+          "
+          style="
+            width:${Math.max(0, Math.min(100, progression))}%;
+          "
+        >
+        </div>
+
+      </div>
+
+    </div>
+  `;
+  }
+
+  /**
+   * Badge générique.
+   */
+  function renderStatusBadge(label, type) {
+    return `
+    <span
+      class="
+        adhesion-status
+        adhesion-status-${type}
+      "
+    >
+      ${escapeHtml(label)}
+    </span>
+  `;
+  }
+
+  /**
+   * Format montant.
+   */
+  function formatAdhesionAmount(value) {
+    if (value === "" || value === null || typeof value === "undefined") {
+      return "—";
+    }
+
+    const amount = Number(String(value).replace(",", "."));
+
+    if (Number.isNaN(amount)) {
+      return String(value);
+    }
+
+    return (
+      amount.toLocaleString("fr-FR", {
+        minimumFractionDigits: 2,
+
+        maximumFractionDigits: 2,
+      }) + " €"
+    );
+  }
+
+  /**
+   * Protection d'une valeur
+   * utilisée dans onclick.
+   */
+  function escapeJs(value) {
+    return String(value || "")
+      .replace(/\\/g, "\\\\")
+      .replace(/'/g, "\\'");
+  }
+
+  /* =========================
+   OUTILS HTML
+   ========================= */
+
+  /**
+   * Protection HTML.
+   */
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+</script>

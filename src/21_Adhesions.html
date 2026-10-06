@@ -1,0 +1,686 @@
+<section id="page-adhesions" class="app-page hidden">
+  <!-- =========================
+       HEADER
+       ========================= -->
+
+  <div class="page-header">
+    <div>
+      <h1>Adhésions</h1>
+
+      <p class="page-description">Suivi administratif des adhésions du club.</p>
+    </div>
+
+    <button type="button" class="btn-secondary" onclick="openAdhesionImports()">
+      ⚙ Imports
+    </button>
+  </div>
+
+  <!-- =========================
+       DASHBOARD PROGRESSION
+       ========================= -->
+
+  <div class="card adhesion-dashboard-card">
+    <div class="card-header">
+      <div>
+        <h2>Progression des adhésions</h2>
+
+        <p>Avancement administratif global et par catégorie.</p>
+      </div>
+    </div>
+
+    <div id="adhesions-dashboard-loading" class="adhesion-dashboard-loading">
+      Chargement de la progression...
+    </div>
+
+    <div
+      id="adhesions-dashboard"
+      class="adhesion-dashboard"
+      style="display: none"
+    >
+      <!-- Rempli dynamiquement -->
+    </div>
+  </div>
+
+  <!-- =========================
+       SUIVI ADHESIONS
+       ========================= -->
+
+  <div class="card adhesion-list-card">
+    <div class="card-header">
+      <div>
+        <h2>Suivi des adhésions</h2>
+
+        <p>
+          Modifiez rapidement les statuts ou ouvrez la fiche d'un adhérent pour
+          accéder au détail.
+        </p>
+      </div>
+    </div>
+
+    <!-- =========================
+         FILTRES
+         ========================= -->
+
+    <div class="adhesion-filters">
+      <input
+        id="adhesions-search"
+        type="text"
+        placeholder="Rechercher un adhérent..."
+        oninput="filterAdhesions()"
+      />
+
+      <select id="adhesions-category-filter" onchange="filterAdhesions()">
+        <option value="">Toutes les catégories</option>
+      </select>
+
+      <select id="adhesions-status-filter" onchange="filterAdhesions()">
+        <option value="">Tous les suivis</option>
+
+        <option value="A_TRAITER">À traiter</option>
+
+        <option value="OK">Terminé</option>
+      </select>
+    </div>
+
+    <!-- =========================
+         COMPTEURS
+         ========================= -->
+
+    <div id="adhesions-summary" class="adhesion-summary"></div>
+
+    <!-- =========================
+         CHARGEMENT
+         ========================= -->
+
+    <div id="adhesions-loading">Chargement des adhésions...</div>
+
+    <!-- =========================
+         ERREUR
+         ========================= -->
+
+    <div id="adhesions-error" style="display: none; margin-bottom: 20px"></div>
+
+    <!-- =========================
+         TABLEAU
+         ========================= -->
+
+    <div
+      id="adhesions-table-container"
+      class="adhesions-table-container"
+      style="display: none"
+    >
+      <table class="access-table adhesions-table">
+        <thead>
+          <tr>
+            <th>Adhérent</th>
+
+            <th>Catégorie</th>
+
+            <th>AssoConnect</th>
+
+            <th>Paiement</th>
+
+            <th>AtoutSport</th>
+
+            <th>Pass'Sport</th>
+
+            <th>Arbitrage</th>
+
+            <th>SportEasy</th>
+
+            <th>Licence</th>
+
+            <th>Suivi</th>
+          </tr>
+        </thead>
+
+        <tbody id="adhesions-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- =========================================================
+       OVERLAY IMPORTS
+       ========================================================= -->
+
+  <div
+    id="adhesion-import-overlay"
+    class="adhesion-detail-overlay"
+    onclick="handleAdhesionImportOverlayClick(event)"
+  ></div>
+
+  <!-- =========================================================
+       PANNEAU IMPORTS
+       ========================================================= -->
+
+  <aside
+    id="adhesion-import-panel"
+    class="adhesion-detail-panel adhesion-import-panel"
+    aria-hidden="true"
+  >
+    <!-- HEADER -->
+
+    <div class="adhesion-detail-header">
+      <div>
+        <div class="adhesion-detail-title-row">
+          <h2>Imports</h2>
+        </div>
+
+        <div class="adhesion-detail-subtitle">
+          Mise à jour des données externes
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="adhesion-detail-close"
+        onclick="closeAdhesionImports()"
+        aria-label="Fermer"
+      >
+        ×
+      </button>
+    </div>
+
+    <!-- CONTENU -->
+
+    <div class="adhesion-detail-content">
+      <!-- =========================
+           ASSOCONNECT
+           ========================= -->
+
+      <div class="adhesion-detail-section">
+        <h3>AssoConnect</h3>
+
+        <div class="adhesion-import-description">
+          Sélectionnez le type des exports avant de lancer l'import.
+        </div>
+
+        <!-- CHARGEMENT -->
+
+        <div id="assoconnect-import-loading">Chargement des exports...</div>
+
+        <!-- CONTENU IMPORT -->
+
+        <div id="assoconnect-import-content" style="display: none">
+          <div class="adhesion-import-table-container">
+            <table class="access-table">
+              <thead>
+                <tr>
+                  <th>Fichier</th>
+
+                  <th>Lignes</th>
+
+                  <th>Type</th>
+                </tr>
+              </thead>
+
+              <tbody id="assoconnect-import-files"></tbody>
+            </table>
+          </div>
+
+          <!-- RESULTAT -->
+
+          <div
+            id="assoconnect-import-result"
+            class="adhesion-import-result"
+            style="display: none"
+          ></div>
+
+          <!-- ACTION -->
+
+          <div class="adhesion-import-actions">
+            <button
+              id="assoconnect-import-button"
+              class="btn-primary"
+              onclick="prepareAssoConnectImport()"
+            >
+              Importer
+            </button>
+          </div>
+        </div>
+
+        <!-- ERREUR -->
+
+        <div
+          id="assoconnect-import-error"
+          class="adhesion-detail-error"
+          style="display: none"
+        ></div>
+      </div>
+
+      <!-- =========================
+           SPORTEASY
+           ========================= -->
+
+      <div class="adhesion-detail-section">
+        <h3>SportEasy</h3>
+
+        <div class="adhesion-import-coming">Import SportEasy à venir.</div>
+      </div>
+
+      <!-- =========================
+     FBI / FFBB
+     ========================= -->
+
+      <div class="adhesion-detail-section">
+        <h3>FBI / FFBB</h3>
+
+        <div class="adhesion-import-description">
+          Synchronisez les préinscriptions et les licences depuis les exports
+          FBI.
+        </div>
+
+        <!-- CHARGEMENT -->
+
+        <div id="fbi-import-loading">Chargement des exports...</div>
+
+        <!-- CONTENU -->
+
+        <div id="fbi-import-content" style="display: none">
+          <!-- FICHIERS -->
+
+          <div class="adhesion-import-table-container">
+            <table class="access-table">
+              <thead>
+                <tr>
+                  <th>Fichier</th>
+
+                  <th>Type</th>
+                </tr>
+              </thead>
+
+              <tbody id="fbi-import-files"></tbody>
+            </table>
+          </div>
+
+          <!-- RESULTAT -->
+
+          <div
+            id="fbi-import-result"
+            class="adhesion-import-result"
+            style="display: none"
+          ></div>
+
+          <!-- ACTION -->
+
+          <div class="adhesion-import-actions">
+            <button
+              id="fbi-import-button"
+              type="button"
+              class="btn-primary"
+              onclick="synchronizeFbiImport()"
+            >
+              Synchroniser FBI
+            </button>
+          </div>
+        </div>
+
+        <!-- ERREUR -->
+
+        <div
+          id="fbi-import-error"
+          class="adhesion-detail-error"
+          style="display: none"
+        ></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- =========================================================
+       OVERLAY FICHE ADHESION
+       ========================================================= -->
+
+  <div
+    id="adhesion-detail-overlay"
+    class="adhesion-detail-overlay"
+    onclick="handleAdhesionOverlayClick(event)"
+  ></div>
+
+  <!-- =========================================================
+       PANNEAU FICHE ADHESION
+       ========================================================= -->
+
+  <aside
+    id="adhesion-detail-panel"
+    class="adhesion-detail-panel"
+    aria-hidden="true"
+  >
+    <!-- HEADER -->
+
+    <div class="adhesion-detail-header">
+      <div>
+        <div class="adhesion-detail-title-row">
+          <h2 id="adhesion-detail-name">Adhérent</h2>
+
+          <span id="adhesion-detail-category" class="adhesion-detail-category">
+          </span>
+        </div>
+
+        <div id="adhesion-detail-id" class="adhesion-detail-subtitle"></div>
+      </div>
+
+      <button
+        type="button"
+        class="adhesion-detail-close"
+        onclick="closeAdhesionDetail()"
+        aria-label="Fermer"
+      >
+        ×
+      </button>
+    </div>
+
+    <!-- =========================
+         CONTENU
+         ========================= -->
+
+    <div class="adhesion-detail-content">
+      <!-- =========================
+           ASSOCONNECT
+           ========================= -->
+
+      <div class="adhesion-detail-section">
+        <h3>AssoConnect</h3>
+
+        <div class="adhesion-detail-grid">
+          <div class="adhesion-detail-field">
+            <label> Statut inscription </label>
+
+            <div
+              id="adhesion-detail-assoconnect"
+              class="adhesion-detail-readonly"
+            ></div>
+          </div>
+
+          <div class="adhesion-detail-field">
+            <label> Paiement déclaré </label>
+
+            <div
+              id="adhesion-detail-payment-source"
+              class="adhesion-detail-readonly"
+            ></div>
+          </div>
+
+          <div class="adhesion-detail-field">
+            <label> Moyen déclaré </label>
+
+            <div
+              id="adhesion-detail-payment-method-source"
+              class="adhesion-detail-readonly"
+            ></div>
+          </div>
+
+          <div class="adhesion-detail-field">
+            <label> Montant dû </label>
+
+            <div
+              id="adhesion-detail-amount"
+              class="adhesion-detail-readonly"
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================
+           PAIEMENT MANUEL
+           ========================= -->
+
+      <div class="adhesion-detail-section">
+        <h3>Paiement hors ligne</h3>
+
+        <div class="adhesion-detail-grid">
+          <div class="adhesion-detail-field">
+            <label for="adhesion-detail-payment-received">
+              Paiement reçu
+            </label>
+
+            <select id="adhesion-detail-payment-received">
+              <option value="Non">Non reçu</option>
+
+              <option value="Oui">Reçu</option>
+            </select>
+          </div>
+
+          <div class="adhesion-detail-field">
+            <label> Moyens reçus </label>
+
+            <div class="adhesion-payment-methods">
+              <label>
+                <input
+                  type="checkbox"
+                  id="adhesion-detail-payment-cheque"
+                  value="CHEQUE"
+                />
+
+                Chèque
+              </label>
+
+              <label>
+                <input
+                  type="checkbox"
+                  id="adhesion-detail-payment-cash"
+                  value="ESPECES"
+                />
+
+                Espèces
+              </label>
+
+              <label>
+                <input
+                  type="checkbox"
+                  id="adhesion-detail-payment-ancv"
+                  value="ANCV"
+                />
+
+                ANCV
+              </label>
+            </div>
+          </div>
+
+          <div class="adhesion-detail-field">
+            <label for="adhesion-detail-payment-amount"> Montant reçu </label>
+
+            <div class="adhesion-amount-input">
+              <input
+                id="adhesion-detail-payment-amount"
+                type="number"
+                min="0"
+                step="0.01"
+              />
+
+              <span> € </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================
+           AIDES
+           ========================= -->
+
+      <div class="adhesion-detail-section">
+        <h3>Aides</h3>
+
+        <div class="adhesion-detail-grid">
+          <div class="adhesion-detail-field">
+            <label for="adhesion-detail-atoutsport"> AtoutSport </label>
+
+            <select id="adhesion-detail-atoutsport">
+              <option value="">À renseigner</option>
+
+              <option value="OUI">Donné</option>
+
+              <option value="NON">Non donné</option>
+
+              <option value="NA">Non applicable</option>
+            </select>
+
+            <div
+              id="adhesion-detail-atoutsport-requested"
+              class="adhesion-detail-hint"
+            ></div>
+          </div>
+
+          <div class="adhesion-detail-field">
+            <label for="adhesion-detail-passsport"> Pass'Sport </label>
+
+            <select id="adhesion-detail-passsport">
+              <option value="">À renseigner</option>
+
+              <option value="OUI">Donné</option>
+
+              <option value="NON">Non donné</option>
+
+              <option value="NA">Non applicable</option>
+            </select>
+
+            <div
+              id="adhesion-detail-passsport-requested"
+              class="adhesion-detail-hint"
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================
+           ARBITRAGE
+           ========================= -->
+
+      <div class="adhesion-detail-section">
+        <h3>Arbitrage</h3>
+
+        <div class="adhesion-detail-grid">
+          <div class="adhesion-detail-field">
+            <label for="adhesion-detail-arbitrage"> Caution </label>
+
+            <select id="adhesion-detail-arbitrage">
+              <option value="">À renseigner</option>
+
+              <option value="OUI">Donné</option>
+
+              <option value="NON">Non donné</option>
+
+              <option value="NA">Non applicable</option>
+            </select>
+          </div>
+
+          <div class="adhesion-detail-field">
+            <label for="adhesion-detail-arbitrage-count"> Chèques reçus </label>
+
+            <select id="adhesion-detail-arbitrage-count">
+              <option value="0">0 / 2</option>
+
+              <option value="1">1 / 2</option>
+
+              <option value="2">2 / 2</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================
+           SPORTEASY
+           ========================= -->
+
+      <div class="adhesion-detail-section">
+        <h3>SportEasy</h3>
+
+        <div class="adhesion-detail-grid">
+          <div class="adhesion-detail-field">
+            <label for="adhesion-detail-sporteasy"> Statut </label>
+
+            <select id="adhesion-detail-sporteasy">
+              <option value="Non">À faire</option>
+
+              <option value="Oui">OK</option>
+            </select>
+          </div>
+
+          <div class="adhesion-detail-field">
+            <label for="adhesion-detail-sporteasy-team"> Équipe </label>
+
+            <input id="adhesion-detail-sporteasy-team" type="text" />
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================
+           LICENCE
+           ========================= -->
+
+      <div class="adhesion-detail-section">
+        <h3>Licence FFBB</h3>
+
+        <div class="adhesion-detail-field">
+          <label for="adhesion-detail-licence"> Statut FBI </label>
+
+          <input
+            id="adhesion-detail-licence"
+            type="text"
+            placeholder="Statut de la licence"
+          />
+
+          <div class="adhesion-detail-hint">
+            Les statuts FBI seront structurés dans une prochaine étape.
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================
+           COMMENTAIRE
+           ========================= -->
+
+      <div class="adhesion-detail-section">
+        <h3>Commentaire</h3>
+
+        <div class="adhesion-detail-field">
+          <textarea
+            id="adhesion-detail-comment"
+            rows="4"
+            placeholder="Ajouter une note interne..."
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- =========================
+           ERREUR
+           ========================= -->
+
+      <div
+        id="adhesion-detail-error"
+        class="adhesion-detail-error"
+        style="display: none"
+      ></div>
+    </div>
+
+    <!-- =========================
+         FOOTER
+         ========================= -->
+
+    <div class="adhesion-detail-footer">
+      <div
+        id="adhesion-detail-saving"
+        class="adhesion-detail-saving"
+        style="display: none"
+      >
+        Enregistrement...
+      </div>
+
+      <button
+        type="button"
+        class="btn-secondary"
+        onclick="closeAdhesionDetail()"
+      >
+        Annuler
+      </button>
+
+      <button
+        id="adhesion-detail-save"
+        type="button"
+        class="btn-primary"
+        onclick="saveAdhesionDetail()"
+      >
+        Enregistrer
+      </button>
+    </div>
+  </aside>
+</section>

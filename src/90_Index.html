@@ -1,0 +1,180 @@
+<!doctype html>
+
+<html>
+  <head>
+    <base target="_top" />
+
+    <?!= include("91_Styles"); ?>
+  </head>
+
+  <body>
+    <div class="app-shell">
+      <!-- =========================
+       MENU
+       ========================= -->
+
+      <aside class="sidebar">
+        <!-- BOUTON COLLAPSE -->
+
+        <button
+          id="sidebar-toggle"
+          class="sidebar-toggle"
+          type="button"
+          onclick="toggleSidebar()"
+          title="Réduire le menu"
+          aria-label="Réduire le menu"
+        >
+          ‹
+        </button>
+
+        <!-- BRAND -->
+
+        <div class="sidebar-brand">
+          <div class="sidebar-logo">USA</div>
+
+          <div class="sidebar-brand-text">
+            <div class="sidebar-club">US Aussonne</div>
+
+            <div class="sidebar-subtitle">Basket</div>
+          </div>
+        </div>
+
+        <!-- NAVIGATION -->
+
+        <nav class="sidebar-menu">
+          <button
+            class="menu-item"
+            data-page="dashboard"
+            onclick="navigateTo('dashboard')"
+            title="Accueil"
+          >
+            <span class="menu-icon"> ⌂ </span>
+
+            <span class="menu-label"> Accueil </span>
+          </button>
+
+          <button
+            class="menu-item active"
+            data-page="planning"
+            onclick="navigateTo('planning')"
+            title="Planning"
+          >
+            <span class="menu-icon"> ▦ </span>
+
+            <span class="menu-label"> Planning </span>
+          </button>
+
+          <button
+            class="menu-item"
+            data-page="adhesions"
+            onclick="navigateTo('adhesions')"
+            title="Adhésions"
+          >
+            <span class="menu-icon"> ♙ </span>
+
+            <span class="menu-label"> Adhésions </span>
+          </button>
+
+          <button
+            class="menu-item"
+            data-page="arbitrage"
+            onclick="navigateTo('arbitrage')"
+            title="Arbitrage"
+          >
+            <span class="menu-icon"> ◉ </span>
+
+            <span class="menu-label"> Arbitrage </span>
+          </button>
+
+          <div class="menu-separator"></div>
+
+          <div class="menu-section-title">Administration</div>
+
+          <button
+            id="menu-access"
+            class="menu-item hidden"
+            data-page="access"
+            onclick="navigateTo('access')"
+            title="Accès"
+          >
+            <span class="menu-icon"> ⚙ </span>
+
+            <span class="menu-label"> Accès </span>
+          </button>
+        </nav>
+
+        <!-- FOOTER -->
+
+        <div class="sidebar-footer">
+          <div id="sidebar-user" class="sidebar-user">
+            <div class="sidebar-user-name">Identification...</div>
+          </div>
+
+          <div class="sidebar-footer-club">US Aussonne Basket</div>
+        </div>
+      </aside>
+
+      <!-- =========================
+       CONTENU
+       ========================= -->
+
+      <main class="app-content">
+        <!-- ACCES NON AUTORISE -->
+
+        <section id="page-unauthorized" class="app-page hidden">
+          <div class="unauthorized-page">
+            <div class="unauthorized-icon">🔒</div>
+
+            <h1>Accès non autorisé</h1>
+
+            <p>
+              Votre compte Google n'est pas autorisé à accéder à l'application
+              US Aussonne Basket.
+            </p>
+
+            <div id="unauthorized-email" class="unauthorized-email"></div>
+
+            <p class="unauthorized-help">
+              Contactez un administrateur du club si vous pensez devoir disposer
+              d'un accès.
+            </p>
+          </div>
+        </section>
+
+        <!-- ACCES -->
+
+        <?!= include("05_Access"); ?>
+
+        <!-- PLANNING -->
+
+        <?!= include("11_Planning"); ?>
+
+        <!-- ACCUEIL -->
+
+        <section id="page-dashboard" class="app-page hidden">
+          <h1>Accueil</h1>
+
+          <div class="empty-module">
+            <div class="empty-module-icon">⌂</div>
+
+            <h2>Tableau de bord</h2>
+
+            <p>Ce module sera développé prochainement.</p>
+          </div>
+        </section>
+
+        <!-- ADHESIONS -->
+
+        <?!= include("21_Adhesions"); ?>
+
+        <!-- ARBITRAGE -->
+
+        <section id="page-arbitrage" class="app-page hidden">
+          <?!= include("31_Arbitrage"); ?>
+        </section>
+      </main>
+    </div>
+
+    <?!= include("92_Scripts"); ?>
+  </body>
+</html>
