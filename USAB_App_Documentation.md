@@ -374,9 +374,18 @@ A_ENVOYER
 ATTENTE_SAISIE
 EN_COURS_SAISIE
 ATTENTE_VALIDATION_CLUB
+ATTENTE_GENERATION_LICENCE
 LICENCE_GENEREE
 A_VERIFIER
 ```
+
+`ATTENTE_GENERATION_LICENCE` signifie que le groupement sportif a validé
+la préinscription et que la génération de la licence par la fédération est
+encore attendue.
+
+`A_VERIFIER` est utilisé lorsqu'aucune correspondance fiable n'est trouvée
+entre un contact/une adhésion et les données FBI, ou lorsqu'une incohérence
+est détectée.
 
 `LICENCE_GENEREE` est le seul statut considéré comme une licence
 finalisée.

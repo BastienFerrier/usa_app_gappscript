@@ -3153,6 +3153,10 @@
 
     const attenteValidation = Number(statuses.ATTENTE_VALIDATION_CLUB || 0);
 
+    const attenteGenerationLicence = Number(
+      statuses.ATTENTE_GENERATION_LICENCE || 0,
+    );
+
     const enCoursSaisie = Number(statuses.EN_COURS_SAISIE || 0);
 
     const attenteSaisie = Number(statuses.ATTENTE_SAISIE || 0);
@@ -3186,6 +3190,10 @@
 
           ${attenteValidation}
           en attente de validation club
+          <br>
+
+          ${attenteGenerationLicence}
+          validée par le club, génération fédérale en attente
           <br>
 
           ${enCoursSaisie}

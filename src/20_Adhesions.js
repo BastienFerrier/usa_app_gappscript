@@ -3257,6 +3257,10 @@ function normalizeFbiStatus(value) {
     return "ATTENTE_VALIDATION_CLUB";
   }
 
+  if (normalized === "validee groupement sportif") {
+    return "ATTENTE_GENERATION_LICENCE";
+  }
+
   if (normalized === "en cours de saisie") {
     return "EN_COURS_SAISIE";
   }
@@ -3284,7 +3288,7 @@ function normalizeFbiStatus(value) {
  *
  * Élodie   -> elodie
  * LE-GOFF  -> le goff
- * D'ANGELO -> dangelo
+ * D'ANGELO -> d angelo
  */
 function normalizeFbiIdentityValue(value) {
   return String(value || "")
@@ -3292,8 +3296,9 @@ function normalizeFbiIdentityValue(value) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[’']/g, "")
+    .replace(/[’']/g, " ")
     .replace(/[-‐-‒–—]/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -3302,6 +3307,14 @@ function normalizeFbiEmail(value) {
   return String(value || "")
     .trim()
     .toLowerCase();
+}
+
+/**
+ * Produit une clé email indépendante
+ * du nom et du prénom.
+ */
+function buildFbiEmailKey(email) {
+  return normalizeFbiEmail(email);
 }
 
 /**
@@ -3523,7 +3536,9 @@ function buildFbiIndexes(fbiRows) {
   };
 
   fbiRows.forEach((row) => {
-    const sourceType = String(row.Source_type || "").trim();
+    const sourceType = String(row.Source_type || "")
+      .trim()
+      .toUpperCase();
 
     const licence = String(row.Licence_ffbb || "").trim();
 
@@ -3535,7 +3550,7 @@ function buildFbiIndexes(fbiRows) {
       row.Date_naissance,
     );
 
-    const emailKey = buildFbiEmailIdentityKey(row.Nom, row.Prenom, row.Email);
+    const emailKey = buildFbiEmailKey(row.Email);
 
     if (sourceType === "LICENCE") {
       if (licence) {
@@ -3600,11 +3615,7 @@ function findFbiMatchForContact(contact, indexes) {
     contact.Date_naissance,
   );
 
-  const emailKey = buildFbiEmailIdentityKey(
-    contact.Nom,
-    contact.Prenom,
-    contact.Email,
-  );
+  const emailKey = buildFbiEmailKey(contact.Email);
 
   /*
    * --------------------------------------------------------
@@ -3760,12 +3771,13 @@ function findFbiMatchForContact(contact, indexes) {
   }
 
   /*
-   * Rien trouvé dans FBI.
+   * Aucune correspondance fiable :
+   * une vérification manuelle est nécessaire.
    */
   return {
     matchType: "AUCUN",
     licence: "",
-    status: "A_ENVOYER",
+    status: "A_VERIFIER",
     functions: "",
   };
 }
@@ -3785,7 +3797,11 @@ function buildFbiMatchResult(matchType, matchedRows, indexes, contact) {
    * Si le premier match vient d'une préinscription,
    * on cherche également la ligne Licenciés correspondante.
    */
-  if (String(firstRow.Source_type || "").trim() === "PREINSCRIPTION") {
+  if (
+    String(firstRow.Source_type || "")
+      .trim()
+      .toUpperCase() === "PREINSCRIPTION"
+  ) {
     const birthKey = buildFbiBirthIdentityKey(
       firstRow.Nom,
       firstRow.Prenom,
@@ -3811,12 +3827,45 @@ function buildFbiMatchResult(matchType, matchedRows, indexes, contact) {
         functions: functions,
       };
     }
+
+    /*
+     * L'email peut avoir permis de retrouver
+     * la préinscription alors que sa date est
+     * absente ou différente. Le nom/prénom FBI
+     * reste alors une clé de licence sûre si
+     * une seule ligne correspond.
+     */
+    const nameKey = buildFbiNameKey(firstRow.Nom, firstRow.Prenom);
+
+    const licenceRowsByName = nameKey
+      ? indexes.licencesByName.get(nameKey) || []
+      : [];
+
+    if (licenceRowsByName.length === 1) {
+      licence = String(licenceRowsByName[0].Licence_ffbb || "").trim();
+
+      functions = String(licenceRowsByName[0].Fonctions || "").trim();
+
+      return {
+        matchType: matchType + "+LICENCE_NOM",
+
+        licence: licence,
+
+        status: "LICENCE_GENEREE",
+
+        functions: functions,
+      };
+    }
   }
 
   /*
    * Match direct sur le fichier Licenciés.
    */
-  if (String(firstRow.Source_type || "").trim() === "LICENCE") {
+  if (
+    String(firstRow.Source_type || "")
+      .trim()
+      .toUpperCase() === "LICENCE"
+  ) {
     functions = String(firstRow.Fonctions || "").trim();
 
     return {
@@ -3947,7 +3996,7 @@ function testFbiMatchingKeys() {
       row.Date_naissance,
     );
 
-    const emailKey = buildFbiEmailIdentityKey(row.Nom, row.Prenom, row.Email);
+    const emailKey = buildFbiEmailKey(row.Email);
 
     if (nameKey) {
       fbiNameKeys++;
@@ -4054,7 +4103,7 @@ function testFbiSeasonValues() {
  * - Seules les adhésions de la saison demandée sont traitées.
  * - Une licence existante n'est jamais remplacée
  *   par une licence différente.
- * - Une personne absente de FBI reçoit A_ENVOYER.
+ * - Une absence de correspondance fiable reçoit A_VERIFIER.
  * - Toute incohérence de numéro de licence reçoit A_VERIFIER.
  */
 function syncFbiToAdhesions(saisonId) {
