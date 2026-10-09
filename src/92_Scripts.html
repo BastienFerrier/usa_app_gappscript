@@ -147,6 +147,14 @@
     if (page === "arbitrage") {
       loadArbitrage();
     }
+
+    /*
+     * Chargement page Matchs.
+     */
+
+    if (page === "matchs") {
+      loadMatchsModule();
+    }
   }
 
   /* =========================
@@ -2728,6 +2736,10 @@
 
   /**
    * Import terminé avec succès.
+   *
+   * L'import alimente d'abord le cache,
+   * puis la synchronisation construit / met
+   * à jour Contacts et Adhesions.
    */
   function handleAssoConnectImportSuccess(result) {
     const button = document.getElementById("assoconnect-import-button");
@@ -4620,6 +4632,1889 @@
       .replace(/\\/g, "\\\\")
       .replace(/'/g, "\\'");
   }
+
+  /* =========================
+   MATCHS
+   ========================= */
+
+  /*
+   * Données complètes de la saison
+   * courante (telles que renvoyées
+   * par listMatchs).
+   *
+   * Les filtres opèrent uniquement
+   * en mémoire sur ce tableau,
+   * sans rappel serveur.
+   */
+  let matchsData = [];
+
+  /*
+   * Saison_id actuellement
+   * sélectionnée dans l'UI Matchs.
+   */
+  let matchsCurrentSaison = "";
+
+  /*
+   * Permet de n'initialiser qu'une
+   * seule fois le sélecteur de saison
+   * (évite de recharger la liste des
+   * saisons à chaque navigation vers
+   * la page Matchs).
+   */
+  let matchsSaisonsLoaded = false;
+
+  /*
+   * Libellés d'affichage des lieux.
+   *
+   * Les valeurs techniques (en MAJUSCULES,
+   * sans accent) sont stockées côté Sheets ;
+   * la traduction en libellés lisibles est
+   * assurée côté client.
+   */
+  const matchsLieuLabels = {
+    PIERRE_DENIS: "Pierre Denis",
+
+    GERMAINE_TILLON: "Germaine Tillon",
+
+    EXTERIEUR: "Extérieur",
+  };
+
+  /*
+   * Libellés d'affichage des catégories.
+   */
+  const matchsCategorieLabels = {
+    U13F: "U13F",
+
+    U13M: "U13M",
+
+    U15F: "U15F",
+
+    U15M: "U15M",
+
+    U18F: "U18F",
+
+    U18M: "U18M",
+
+    SENIORS_F: "Seniors F",
+
+    SENIORS_M: "Seniors M",
+  };
+
+  /*
+   * Libellés d'affichage des rôles
+   * d'affectation (utilisés dans les
+   * badges de comptage).
+   */
+  const matchsRoleLabels = {
+    ARBITRE: "Arb.",
+
+    OTM: "OTM",
+
+    RESPONSABLE_SALLE: "RS",
+  };
+
+  /**
+   * Indique si l'utilisateur courant
+   * peut modifier les matchs et les
+   * affectations.
+   *
+   * Vrai pour les rôles ADMIN et
+   * BUREAU (Role_editeur), faux
+   * sinon (COACH ou `currentUser`
+   * non encore chargé).
+   *
+   * Ce contrôle est purement
+   * **cosmétique** : le backend
+   * applique de toute façon
+   * `requireRole("ADMIN","BUREAU")`
+   * sur chaque écriture (exigence
+   * 9.5).
+   */
+  function matchsIsEditor() {
+    return Boolean(
+      currentUser &&
+      (currentUser.role === "ADMIN" || currentUser.role === "BUREAU"),
+    );
+  }
+
+  /**
+   * Point d'entrée du module Matchs.
+   *
+   * Appelé par navigateTo("matchs")
+   * (câblage ajouté à l'étape 13.2).
+   *
+   * - Au premier appel : peuple le
+   *   sélecteur de saison via
+   *   getActiveSaison() puis
+   *   listSaisons(), présélectionne
+   *   la saison active, puis charge
+   *   les matchs.
+   * - Aux appels suivants : relit
+   *   simplement les matchs de la
+   *   saison déjà sélectionnée.
+   */
+  function loadMatchsModule() {
+    if (matchsSaisonsLoaded) {
+      /*
+       * Rafraîchissement de la liste
+       * sur la saison courante lors
+       * d'un retour sur la page.
+       */
+
+      loadMatchs(matchsCurrentSaison);
+
+      return;
+    }
+
+    showMatchsLoading("Chargement des saisons...");
+
+    google.script.run
+
+      .withSuccessHandler(function (activeSaison) {
+        google.script.run
+
+          .withSuccessHandler(function (saisons) {
+            populateMatchsSaisonSelect(saisons, activeSaison);
+
+            matchsSaisonsLoaded = true;
+
+            if (matchsCurrentSaison) {
+              loadMatchs(matchsCurrentSaison);
+            } else {
+              /*
+               * Aucune saison active ni saison
+               * disponible : on affiche l'état
+               * vide (exigences 1.6, 2.4).
+               */
+
+              matchsData = [];
+
+              displayMatchs([]);
+            }
+          })
+
+          .withFailureHandler(showMatchsError)
+
+          .listSaisons();
+      })
+
+      .withFailureHandler(showMatchsError)
+
+      .getActiveSaison();
+  }
+
+  /**
+   * Peuple le sélecteur de saison
+   * et présélectionne la saison
+   * active (si elle est présente
+   * dans la liste des saisons).
+   *
+   * - La liste des saisons est triée
+   *   côté serveur (Saison_id
+   *   décroissant).
+   * - Si aucune saison active n'est
+   *   définie, on sélectionne la
+   *   première saison disponible.
+   */
+  function populateMatchsSaisonSelect(saisons, activeSaison) {
+    const select = document.getElementById("matchs-saison-select");
+
+    if (!select) {
+      return;
+    }
+
+    select.innerHTML = "";
+
+    const list = Array.isArray(saisons) ? saisons : [];
+
+    if (list.length === 0) {
+      matchsCurrentSaison = "";
+
+      return;
+    }
+
+    list.forEach(function (saison) {
+      const option = document.createElement("option");
+
+      option.value = saison.Saison_id;
+
+      option.textContent = saison.Libelle || saison.Saison_id;
+
+      select.appendChild(option);
+    });
+
+    const activeId =
+      activeSaison && activeSaison.Saison_id ? activeSaison.Saison_id : "";
+
+    const hasActive =
+      activeId && list.some((saison) => saison.Saison_id === activeId);
+
+    if (hasActive) {
+      select.value = activeId;
+
+      matchsCurrentSaison = activeId;
+    } else {
+      select.value = list[0].Saison_id;
+
+      matchsCurrentSaison = list[0].Saison_id;
+    }
+  }
+
+  /**
+   * Handler onchange du sélecteur
+   * de saison.
+   *
+   * Recharge l'ensemble des matchs
+   * pour la saison choisie (exigence
+   * 2.3). Les filtres Catégorie /
+   * Lieu sont conservés tels quels
+   * et appliqués sur le nouveau jeu
+   * de données.
+   */
+  function onMatchsSaisonChange() {
+    const select = document.getElementById("matchs-saison-select");
+
+    if (!select) {
+      return;
+    }
+
+    matchsCurrentSaison = select.value || "";
+
+    loadMatchs(matchsCurrentSaison);
+  }
+
+  /**
+   * Charge les matchs de la saison
+   * demandée depuis le backend.
+   */
+  function loadMatchs(saisonId) {
+    const normalized = String(saisonId || "").trim();
+
+    if (!normalized) {
+      matchsData = [];
+
+      displayMatchs([]);
+
+      return;
+    }
+
+    showMatchsLoading("Chargement...");
+
+    google.script.run
+
+      .withSuccessHandler(handleMatchsLoaded)
+
+      .withFailureHandler(showMatchsError)
+
+      .listMatchs(normalized);
+  }
+
+  /**
+   * Succès du chargement : on stocke
+   * les données puis on applique les
+   * filtres courants (exigences 3.1,
+   * 3.2).
+   */
+  function handleMatchsLoaded(data) {
+    matchsData = Array.isArray(data) ? data : [];
+
+    filterMatchs();
+  }
+
+  /**
+   * Applique les filtres Catégorie
+   * et Lieu sur `matchsData` et
+   * rafraîchit l'affichage.
+   *
+   * Filtrage strictement en mémoire :
+   * aucun rappel serveur n'est
+   * déclenché (exigence 3.1-3.3).
+   */
+  function filterMatchs() {
+    const categorie = String(
+      document.getElementById("matchs-filter-categorie")?.value || "",
+    ).trim();
+
+    const lieu = String(
+      document.getElementById("matchs-filter-lieu")?.value || "",
+    ).trim();
+
+    const filtered = matchsData
+
+      .filter(function (match) {
+        if (!categorie) {
+          return true;
+        }
+
+        return String(match.Categorie || "").trim() === categorie;
+      })
+
+      .filter(function (match) {
+        if (!lieu) {
+          return true;
+        }
+
+        return String(match.Lieu || "").trim() === lieu;
+      });
+
+    displayMatchs(filtered);
+  }
+
+  /**
+   * Réinitialise les deux filtres
+   * et réaffiche l'intégralité des
+   * matchs de la saison courante
+   * (exigence 3.3).
+   */
+  function clearMatchsFilters() {
+    const categorie = document.getElementById("matchs-filter-categorie");
+
+    const lieu = document.getElementById("matchs-filter-lieu");
+
+    if (categorie) {
+      categorie.value = "";
+    }
+
+    if (lieu) {
+      lieu.value = "";
+    }
+
+    filterMatchs();
+  }
+
+  /**
+   * Affiche la liste des matchs
+   * filtrés dans le tableau de la
+   * page.
+   *
+   * - Met à jour le résumé (nombre
+   *   affiché vs total de la saison).
+   * - Bascule entre le tableau et
+   *   l'état vide (exigence 1.6).
+   * - Rend chaque ligne cliquable
+   *   pour ouvrir la fiche détail
+   *   (implémentation 12.4).
+   */
+  function displayMatchs(matchs) {
+    const loading = document.getElementById("matchs-loading");
+
+    const container = document.getElementById("matchs-table-container");
+
+    const empty = document.getElementById("matchs-empty");
+
+    const body = document.getElementById("matchs-table-body");
+
+    const summary = document.getElementById("matchs-summary");
+
+    if (loading) {
+      loading.style.display = "none";
+    }
+
+    if (!body) {
+      return;
+    }
+
+    /*
+     * =========================
+     * RESUME
+     * =========================
+     *
+     * Affiche le nombre de matchs
+     * actuellement visibles sur le
+     * total de la saison, pour
+     * donner un retour utilisateur
+     * sur l'impact des filtres.
+     */
+
+    if (summary) {
+      const total = matchsData.length;
+
+      const shown = matchs.length;
+
+      if (total === 0) {
+        summary.textContent = "Aucun match pour la saison.";
+      } else if (shown === total) {
+        summary.textContent = total + " match(s)";
+      } else {
+        summary.textContent = shown + " match(s) affiché(s) sur " + total;
+      }
+    }
+
+    body.innerHTML = "";
+
+    /*
+     * =========================
+     * AUCUN MATCH
+     * =========================
+     *
+     * Soit la saison est vide, soit
+     * les filtres n'ont rien laissé :
+     * dans les deux cas on affiche
+     * l'état vide et on masque le
+     * tableau.
+     */
+
+    if (!matchs || matchs.length === 0) {
+      if (container) {
+        container.style.display = "none";
+      }
+
+      if (empty) {
+        empty.style.display = "block";
+      }
+
+      return;
+    }
+
+    if (empty) {
+      empty.style.display = "none";
+    }
+
+    if (container) {
+      container.style.display = "block";
+    }
+
+    /*
+     * =========================
+     * LIGNES
+     * =========================
+     */
+
+    matchs.forEach(function (match) {
+      const tr = document.createElement("tr");
+
+      tr.className = "matchs-row";
+
+      tr.style.cursor = "pointer";
+
+      const matchId = String(match.Match_id || "").trim();
+
+      tr.addEventListener("click", function () {
+        openMatchDetail(matchId);
+      });
+
+      /*
+       * =========================
+       * DATE
+       * =========================
+       */
+
+      const dateTd = document.createElement("td");
+
+      dateTd.textContent = formatMatchsDate(match.Date);
+
+      /*
+       * =========================
+       * CATEGORIE
+       * =========================
+       */
+
+      const categorieTd = document.createElement("td");
+
+      const categorieValue = String(match.Categorie || "").trim();
+
+      if (categorieValue) {
+        const categorieBadge = document.createElement("span");
+
+        categorieBadge.className = "matchs-badge matchs-badge-categorie";
+
+        categorieBadge.textContent = formatMatchsCategorie(categorieValue);
+
+        categorieTd.appendChild(categorieBadge);
+      } else {
+        categorieTd.textContent = "—";
+      }
+
+      /*
+       * =========================
+       * EQUIPES
+       * =========================
+       *
+       * On affiche Equipe1 vs Equipe2
+       * et un petit indicateur
+       * Domicile / Extérieur.
+       */
+
+      const equipesTd = document.createElement("td");
+
+      const equipesWrap = document.createElement("div");
+
+      equipesWrap.className = "matchs-equipes";
+
+      const equipesText = document.createElement("div");
+
+      equipesText.className = "matchs-equipes-text";
+
+      const equipe1 = String(match.Equipe1 || "").trim() || "—";
+
+      const equipe2 = String(match.Equipe2 || "").trim() || "—";
+
+      equipesText.textContent = equipe1 + " vs " + equipe2;
+
+      equipesWrap.appendChild(equipesText);
+
+      const domicile = String(match.Domicile_exterieur || "")
+        .trim()
+        .toUpperCase();
+
+      if (domicile === "DOMICILE" || domicile === "EXTERIEUR") {
+        const indicator = document.createElement("span");
+
+        indicator.className =
+          "matchs-badge matchs-badge-" +
+          (domicile === "DOMICILE" ? "domicile" : "exterieur");
+
+        indicator.textContent =
+          domicile === "DOMICILE" ? "Domicile" : "Extérieur";
+
+        equipesWrap.appendChild(indicator);
+      }
+
+      equipesTd.appendChild(equipesWrap);
+
+      /*
+       * =========================
+       * LIEU
+       * =========================
+       */
+
+      const lieuTd = document.createElement("td");
+
+      const lieuValue = String(match.Lieu || "").trim();
+
+      lieuTd.textContent = lieuValue ? formatMatchsLieu(lieuValue) : "—";
+
+      /*
+       * =========================
+       * SCORE
+       * =========================
+       */
+
+      const scoreTd = document.createElement("td");
+
+      scoreTd.textContent = String(match.Score || "").trim() || "—";
+
+      /*
+       * =========================
+       * AFFECTATIONS
+       * =========================
+       *
+       * Badges de comptage par rôle,
+       * calculés côté serveur par
+       * listMatchs (champ `comptes`).
+       */
+
+      const affectationsTd = document.createElement("td");
+
+      affectationsTd.appendChild(renderMatchsCountsBadges(match.comptes));
+
+      tr.appendChild(dateTd);
+
+      tr.appendChild(categorieTd);
+
+      tr.appendChild(equipesTd);
+
+      tr.appendChild(lieuTd);
+
+      tr.appendChild(scoreTd);
+
+      tr.appendChild(affectationsTd);
+
+      body.appendChild(tr);
+    });
+  }
+
+  /**
+   * Construit un petit groupe de
+   * badges de comptage d'affectations
+   * par rôle pour un match donné.
+   */
+  function renderMatchsCountsBadges(comptes) {
+    const wrap = document.createElement("div");
+
+    wrap.className = "matchs-counts";
+
+    const safe = comptes || { ARBITRE: 0, OTM: 0, RESPONSABLE_SALLE: 0 };
+
+    ["ARBITRE", "OTM", "RESPONSABLE_SALLE"].forEach(function (role) {
+      const count = Number(safe[role] || 0);
+
+      const badge = document.createElement("span");
+
+      badge.className =
+        "matchs-badge matchs-badge-count matchs-badge-" +
+        role.toLowerCase().replace(/_/g, "-");
+
+      /*
+       * Les comptes à zéro sont
+       * discrètement grisés pour que
+       * l'oeil se porte sur les rôles
+       * déjà pourvus.
+       */
+
+      if (count === 0) {
+        badge.classList.add("matchs-badge-zero");
+      }
+
+      badge.textContent = (matchsRoleLabels[role] || role) + " " + count;
+
+      wrap.appendChild(badge);
+    });
+
+    return wrap;
+  }
+
+  /**
+   * Formatte une date ISO 8601
+   * reçue du backend en libellé
+   * court français (JJ/MM/AAAA
+   * HH:mm).
+   */
+  function formatMatchsDate(iso) {
+    const value = String(iso || "").trim();
+
+    if (!value) {
+      return "—";
+    }
+
+    const date = new Date(value);
+
+    if (isNaN(date.getTime())) {
+      return value;
+    }
+
+    const day = String(date.getDate()).padStart(2, "0");
+
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+
+    const year = date.getFullYear();
+
+    const hours = String(date.getHours()).padStart(2, "0");
+
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+
+    /*
+     * On masque l'heure quand elle
+     * est à 00:00 (saisie purement
+     * calendaire côté Sheets).
+     */
+
+    if (hours === "00" && minutes === "00") {
+      return day + "/" + month + "/" + year;
+    }
+
+    return day + "/" + month + "/" + year + " " + hours + ":" + minutes;
+  }
+
+  /**
+   * Libellé d'affichage d'un lieu.
+   */
+  function formatMatchsLieu(lieu) {
+    return matchsLieuLabels[lieu] || lieu || "—";
+  }
+
+  /**
+   * Libellé d'affichage d'une
+   * catégorie.
+   */
+  function formatMatchsCategorie(categorie) {
+    return matchsCategorieLabels[categorie] || categorie || "—";
+  }
+
+  /**
+   * Affiche l'état « chargement »
+   * de la page Matchs et masque
+   * tableau / état vide.
+   */
+  function showMatchsLoading(text) {
+    const loading = document.getElementById("matchs-loading");
+
+    const container = document.getElementById("matchs-table-container");
+
+    const empty = document.getElementById("matchs-empty");
+
+    if (loading) {
+      loading.style.display = "block";
+
+      loading.textContent = text || "Chargement...";
+    }
+
+    if (container) {
+      container.style.display = "none";
+    }
+
+    if (empty) {
+      empty.style.display = "none";
+    }
+  }
+
+  /**
+   * Affichage d'une erreur backend
+   * dans la zone de chargement de
+   * la page Matchs.
+   */
+  function showMatchsError(error) {
+    console.error("Erreur Matchs :", error);
+
+    const loading = document.getElementById("matchs-loading");
+
+    const container = document.getElementById("matchs-table-container");
+
+    const empty = document.getElementById("matchs-empty");
+
+    const message =
+      (error && error.message) || String(error) || "Une erreur est survenue.";
+
+    if (loading) {
+      loading.style.display = "block";
+
+      loading.innerHTML = "<strong>Erreur :</strong> " + escapeHtml(message);
+    }
+
+    if (container) {
+      container.style.display = "none";
+    }
+
+    if (empty) {
+      empty.style.display = "none";
+    }
+  }
+
+  /* =========================
+   DETAIL / EDITION D'UN MATCH
+   ========================= */
+
+  /*
+   * Identifiant du match actuellement
+   * ouvert dans la modale, ou "" si
+   * la modale est fermée. Utilisé par
+   * les handlers d'affectation pour
+   * retrouver le match courant sans
+   * relire le DOM.
+   */
+  let matchsDetailCurrentId = "";
+
+  /*
+   * Viviers courants (arbitres, OTM)
+   * pour la saison du match ouvert.
+   * Rechargés à chaque ouverture de
+   * la modale pour refléter la bonne
+   * saison. Utilisés pour peupler les
+   * `<select>` et pour résoudre les
+   * noms après un `assignAffectation`
+   * / `removeAffectation` sans
+   * attendre un second aller-retour.
+   */
+  let matchsDetailArbitres = [];
+
+  let matchsDetailOtm = [];
+
+  /**
+   * Ouverture de la fiche détail
+   * d'un match.
+   *
+   * Appelle en parallèle :
+   * - getMatchDetail(matchId) pour
+   *   les champs éditables et la
+   *   liste des affectations ;
+   * - getArbitresAffectables(saisonId)
+   *   et getOtmAffectables(saisonId)
+   *   pour peupler les sélecteurs
+   *   d'ajout.
+   *
+   * La saison utilisée est la saison
+   * courante de la page (exigence 1.7).
+   *
+   * Fallback OTM (exigence 8.7) :
+   * si le vivier OTM est vide, on
+   * affiche « Module OTM à venir » et
+   * on désactive l'ajout sans
+   * bloquer le reste de la modale.
+   */
+  function openMatchDetail(matchId) {
+    const normalized = String(matchId || "").trim();
+
+    if (!normalized) {
+      return;
+    }
+
+    matchsDetailCurrentId = normalized;
+
+    matchsDetailArbitres = [];
+
+    matchsDetailOtm = [];
+
+    showMatchsDetailModal();
+
+    resetMatchsDetailForm();
+
+    /*
+     * Applique immédiatement le
+     * contrôle d'accès cosmétique
+     * (exigence 9.4) pour éviter un
+     * flash des boutons avant que
+     * `fillMatchsDetailForm` /
+     * `applyMatchsOtmViviers` ne
+     * reprennent la main.
+     */
+
+    applyMatchsAccessControl();
+
+    showMatchsDetailMessage("Chargement...", false);
+
+    const saisonId = String(matchsCurrentSaison || "").trim();
+
+    /*
+     * Trois appels backend indépendants
+     * mais complémentaires. On attend
+     * le détail du match pour peupler
+     * les champs ; les viviers servent
+     * à peupler les sélecteurs d'ajout.
+     */
+
+    google.script.run
+
+      .withSuccessHandler(function (detail) {
+        fillMatchsDetailForm(detail);
+
+        showMatchsDetailMessage("", false);
+      })
+
+      .withFailureHandler(function (error) {
+        const message =
+          (error && error.message) ||
+          String(error) ||
+          "Impossible de charger le match.";
+
+        showMatchsDetailMessage(message, true);
+      })
+
+      .getMatchDetail(normalized);
+
+    google.script.run
+
+      .withSuccessHandler(function (arbitres) {
+        matchsDetailArbitres = Array.isArray(arbitres) ? arbitres : [];
+
+        populateMatchsAffectationSelect(
+          "matchs-detail-arbitres-select",
+          matchsDetailArbitres,
+          "Sélectionner un arbitre...",
+        );
+      })
+
+      .withFailureHandler(function (error) {
+        /*
+         * Erreur de chargement du vivier
+         * arbitres (ex. droits) : on
+         * laisse le select vide, le
+         * reste de la modale reste
+         * utilisable.
+         */
+
+        console.error("Vivier arbitres :", error);
+
+        matchsDetailArbitres = [];
+
+        populateMatchsAffectationSelect(
+          "matchs-detail-arbitres-select",
+          [],
+          "Sélectionner un arbitre...",
+        );
+      })
+
+      .getArbitresAffectables(saisonId);
+
+    google.script.run
+
+      .withSuccessHandler(function (otm) {
+        matchsDetailOtm = Array.isArray(otm) ? otm : [];
+
+        applyMatchsOtmViviers();
+      })
+
+      .withFailureHandler(function (error) {
+        /*
+         * Erreur de chargement du vivier
+         * OTM : même traitement qu'un
+         * vivier vide (exigence 8.7).
+         */
+
+        console.error("Vivier OTM :", error);
+
+        matchsDetailOtm = [];
+
+        applyMatchsOtmViviers();
+      })
+
+      .getOtmAffectables(saisonId);
+  }
+
+  /**
+   * Affiche la modale détail du match
+   * et bloque le scroll de la page.
+   */
+  function showMatchsDetailModal() {
+    const overlay = document.getElementById("matchs-detail-overlay");
+
+    if (overlay) {
+      overlay.style.display = "block";
+    }
+
+    document.body.style.overflow = "hidden";
+  }
+
+  /**
+   * Ferme la modale détail du match
+   * et libère l'état interne.
+   */
+  function closeMatchDetail() {
+    const overlay = document.getElementById("matchs-detail-overlay");
+
+    if (overlay) {
+      overlay.style.display = "none";
+    }
+
+    document.body.style.overflow = "";
+
+    matchsDetailCurrentId = "";
+
+    matchsDetailArbitres = [];
+
+    matchsDetailOtm = [];
+  }
+
+  /**
+   * Ferme la modale quand on clique
+   * directement sur l'arrière-plan.
+   */
+  function handleMatchsDetailOverlayClick(event) {
+    if (event.target === event.currentTarget) {
+      closeMatchDetail();
+    }
+  }
+
+  /**
+   * Réinitialise tous les champs et
+   * listes de la modale avant un
+   * rechargement.
+   */
+  function resetMatchsDetailForm() {
+    const ids = [
+      "matchs-detail-id",
+      "matchs-detail-date",
+      "matchs-detail-categorie",
+      "matchs-detail-equipe1",
+      "matchs-detail-equipe2",
+      "matchs-detail-domicile",
+      "matchs-detail-lieu",
+      "matchs-detail-score",
+      "matchs-detail-responsable",
+    ];
+
+    ids.forEach(function (id) {
+      const el = document.getElementById(id);
+
+      if (el) {
+        el.value = "";
+      }
+    });
+
+    const title = document.getElementById("matchs-detail-title");
+
+    if (title) {
+      title.textContent = "";
+    }
+
+    const arbitresList = document.getElementById("matchs-detail-arbitres-list");
+
+    if (arbitresList) {
+      arbitresList.innerHTML = "";
+    }
+
+    const otmList = document.getElementById("matchs-detail-otm-list");
+
+    if (otmList) {
+      otmList.innerHTML = "";
+    }
+
+    const arbitresEmpty = document.getElementById(
+      "matchs-detail-arbitres-empty",
+    );
+
+    if (arbitresEmpty) {
+      arbitresEmpty.style.display = "none";
+    }
+
+    const otmEmpty = document.getElementById("matchs-detail-otm-empty");
+
+    if (otmEmpty) {
+      otmEmpty.style.display = "none";
+    }
+
+    const otmComing = document.getElementById("matchs-detail-otm-coming");
+
+    if (otmComing) {
+      otmComing.style.display = "none";
+    }
+  }
+
+  /**
+   * Remplit la modale avec le détail
+   * reçu de getMatchDetail.
+   *
+   * Attendu :
+   *   { match: { ... }, affectations: [...] }
+   */
+  function fillMatchsDetailForm(detail) {
+    const match = (detail && detail.match) || {};
+
+    const affectations = (detail && detail.affectations) || [];
+
+    const idInput = document.getElementById("matchs-detail-id");
+
+    if (idInput) {
+      idInput.value = String(match.Match_id || "");
+    }
+
+    const title = document.getElementById("matchs-detail-title");
+
+    if (title) {
+      const equipe1 = String(match.Equipe1 || "").trim() || "—";
+
+      const equipe2 = String(match.Equipe2 || "").trim() || "—";
+
+      title.textContent = equipe1 + " vs " + equipe2;
+    }
+
+    const dateInput = document.getElementById("matchs-detail-date");
+
+    if (dateInput) {
+      dateInput.value = isoToDatetimeLocal(match.Date);
+    }
+
+    setMatchsDetailValue("matchs-detail-categorie", match.Categorie);
+
+    setMatchsDetailValue("matchs-detail-equipe1", match.Equipe1);
+
+    setMatchsDetailValue("matchs-detail-equipe2", match.Equipe2);
+
+    setMatchsDetailValue("matchs-detail-domicile", match.Domicile_exterieur);
+
+    setMatchsDetailValue("matchs-detail-lieu", match.Lieu);
+
+    setMatchsDetailValue("matchs-detail-score", match.Score);
+
+    setMatchsDetailValue("matchs-detail-responsable", match.Responsable_salle);
+
+    renderMatchsAffectationsLists(affectations);
+
+    /*
+     * Après chaque remplissage, on
+     * réapplique le contrôle d'accès
+     * cosmétique : `fillMatchsDetailForm`
+     * peut être appelé par un
+     * rafraîchissement
+     * (`refreshMatchsDetail`) sans
+     * repasser par `openMatchDetail`,
+     * et les listes d'affectations
+     * ont été reconstruites.
+     */
+
+    applyMatchsAccessControl();
+  }
+
+  /**
+   * Affecte une valeur à un input /
+   * select par identifiant, en
+   * ignorant silencieusement les
+   * éléments manquants.
+   */
+  function setMatchsDetailValue(id, value) {
+    const el = document.getElementById(id);
+
+    if (!el) {
+      return;
+    }
+
+    el.value = String(value == null ? "" : value);
+  }
+
+  /**
+   * Convertit une chaîne ISO 8601
+   * (telle que renvoyée par le
+   * backend) en valeur acceptée par
+   * un `<input type="datetime-local">`,
+   * i.e. `yyyy-MM-ddTHH:mm` en heure
+   * locale.
+   *
+   * Retourne une chaîne vide si
+   * `iso` est vide ou non parsable.
+   */
+  function isoToDatetimeLocal(iso) {
+    const value = String(iso || "").trim();
+
+    if (!value) {
+      return "";
+    }
+
+    const date = new Date(value);
+
+    if (isNaN(date.getTime())) {
+      return "";
+    }
+
+    const pad = function (n) {
+      return String(n).padStart(2, "0");
+    };
+
+    return (
+      date.getFullYear() +
+      "-" +
+      pad(date.getMonth() + 1) +
+      "-" +
+      pad(date.getDate()) +
+      "T" +
+      pad(date.getHours()) +
+      ":" +
+      pad(date.getMinutes())
+    );
+  }
+
+  /**
+   * Rend les deux listes
+   * d'affectations (arbitres, OTM)
+   * à partir du tableau
+   * `detail.affectations`.
+   *
+   * Chaque entrée est séparée selon
+   * son `Role` ; les rôles inconnus
+   * (ex. RESPONSABLE_SALLE à venir)
+   * sont ignorés — ils sont gérés
+   * par le champ libre « Responsable
+   * de salle » du match.
+   */
+  function renderMatchsAffectationsLists(affectations) {
+    const arbitres = [];
+
+    const otms = [];
+
+    (affectations || []).forEach(function (aff) {
+      const role = String(aff.Role || "")
+        .trim()
+        .toUpperCase();
+
+      if (role === "ARBITRE") {
+        arbitres.push(aff);
+      } else if (role === "OTM") {
+        otms.push(aff);
+      }
+    });
+
+    renderMatchsAffectationList(
+      "matchs-detail-arbitres-list",
+      "matchs-detail-arbitres-empty",
+      arbitres,
+    );
+
+    renderMatchsAffectationList(
+      "matchs-detail-otm-list",
+      "matchs-detail-otm-empty",
+      otms,
+    );
+  }
+
+  /**
+   * Rend une liste d'affectations
+   * dans `<ul>` : une ligne par
+   * affectation avec le nom
+   * affichable + un bouton
+   * « Retirer » qui appelle
+   * `removeMatchAffectation`.
+   *
+   * Affiche l'état vide (`emptyId`)
+   * si la liste est vide.
+   */
+  function renderMatchsAffectationList(listId, emptyId, affectations) {
+    const list = document.getElementById(listId);
+
+    const empty = document.getElementById(emptyId);
+
+    if (!list) {
+      return;
+    }
+
+    list.innerHTML = "";
+
+    if (!affectations || affectations.length === 0) {
+      if (empty) {
+        empty.style.display = "block";
+      }
+
+      return;
+    }
+
+    if (empty) {
+      empty.style.display = "none";
+    }
+
+    affectations.forEach(function (aff) {
+      const li = document.createElement("li");
+
+      li.className = "matchs-affectation-item";
+
+      const nameSpan = document.createElement("span");
+
+      nameSpan.className = "matchs-affectation-name";
+
+      const displayName =
+        String(aff.DisplayName || "").trim() ||
+        String(aff.Personne_id || "").trim();
+
+      nameSpan.textContent = displayName;
+
+      li.appendChild(nameSpan);
+
+      /*
+       * Bouton « Retirer » affiché
+       * uniquement pour les éditeurs
+       * (exigence 9.4). Le COACH voit
+       * la liste des affectés en
+       * lecture seule.
+       */
+
+      if (matchsIsEditor()) {
+        const removeButton = document.createElement("button");
+
+        removeButton.type = "button";
+
+        removeButton.className = "matchs-affectation-remove";
+
+        removeButton.setAttribute("aria-label", "Retirer");
+
+        removeButton.textContent = "×";
+
+        const affectationId = String(aff.Affectation_id || "").trim();
+
+        removeButton.addEventListener("click", function () {
+          removeMatchAffectation(affectationId);
+        });
+
+        li.appendChild(removeButton);
+      }
+
+      list.appendChild(li);
+    });
+  }
+
+  /**
+   * Peuple un `<select>` d'ajout
+   * d'affectation avec le vivier
+   * fourni. Le libellé affiché est
+   * `Prénom Nom`, la valeur est le
+   * `Personne_id`.
+   */
+  function populateMatchsAffectationSelect(selectId, vivier, placeholder) {
+    const select = document.getElementById(selectId);
+
+    if (!select) {
+      return;
+    }
+
+    select.innerHTML = "";
+
+    const placeholderOption = document.createElement("option");
+
+    placeholderOption.value = "";
+
+    placeholderOption.textContent = placeholder || "Sélectionner...";
+
+    select.appendChild(placeholderOption);
+
+    (vivier || []).forEach(function (personne) {
+      const personneId = String(personne.Personne_id || "").trim();
+
+      if (!personneId) {
+        return;
+      }
+
+      const option = document.createElement("option");
+
+      option.value = personneId;
+
+      const displayName = (
+        String(personne.Prenom || "").trim() +
+        " " +
+        String(personne.Nom || "").trim()
+      ).trim();
+
+      option.textContent = displayName || personneId;
+
+      select.appendChild(option);
+    });
+  }
+
+  /**
+   * Applique le vivier OTM à l'UI.
+   *
+   * Vivier non vide → peuple le
+   * sélecteur et active l'ajout.
+   *
+   * Vivier vide → affiche « Module
+   * OTM à venir », désactive le
+   * sélecteur et le bouton
+   * « Ajouter » (exigence 8.7). Le
+   * reste de la modale reste
+   * utilisable.
+   */
+  function applyMatchsOtmViviers() {
+    const select = document.getElementById("matchs-detail-otm-select");
+
+    const addButton = document.getElementById("matchs-detail-otm-add");
+
+    const coming = document.getElementById("matchs-detail-otm-coming");
+
+    const hasOtm = matchsDetailOtm && matchsDetailOtm.length > 0;
+
+    if (hasOtm) {
+      populateMatchsAffectationSelect(
+        "matchs-detail-otm-select",
+        matchsDetailOtm,
+        "Sélectionner un OTM...",
+      );
+
+      if (select) {
+        select.disabled = false;
+      }
+
+      if (addButton) {
+        addButton.disabled = false;
+      }
+
+      if (coming) {
+        coming.style.display = "none";
+      }
+    } else {
+      populateMatchsAffectationSelect(
+        "matchs-detail-otm-select",
+        [],
+        "Sélectionner un OTM...",
+      );
+
+      if (select) {
+        select.disabled = true;
+      }
+
+      if (addButton) {
+        addButton.disabled = true;
+      }
+
+      if (coming) {
+        coming.style.display = "block";
+      }
+    }
+
+    /*
+     * `applyMatchsOtmViviers` peut
+     * réactiver `select` / `addButton`
+     * quand le vivier devient non
+     * vide ; on repasse par le
+     * contrôle d'accès pour que les
+     * non-éditeurs restent sans
+     * bouton « Ajouter ».
+     */
+
+    applyMatchsAccessControl();
+  }
+
+  /**
+   * Applique le contrôle d'accès
+   * cosmétique sur la modale détail
+   * du match courant (exigence 9.4).
+   *
+   * Pour un non-éditeur (COACH) :
+   * - champs d'édition passés en
+   *   lecture seule (`disabled`) ;
+   * - boutons « Enregistrer », les
+   *   deux « Ajouter » et leurs
+   *   `<select>` d'ajout masqués ;
+   * - les boutons « Retirer » (×)
+   *   ne sont pas émis par
+   *   `renderMatchsAffectationList`.
+   *
+   * Pour un éditeur (ADMIN/BUREAU) :
+   * champs éditables, boutons et
+   * `<select>` d'ajout visibles. Le
+   * cas particulier « vivier OTM
+   * vide » reste géré par
+   * `applyMatchsOtmViviers`
+   * (bouton Ajouter OTM désactivé
+   * mais visible, exigence 8.7).
+   *
+   * Ce masquage est purement
+   * **cosmétique** : le backend
+   * applique `requireRole` sur
+   * chaque écriture (exigence 9.5).
+   */
+  function applyMatchsAccessControl() {
+    const editor = matchsIsEditor();
+
+    /*
+     * Champs d'édition : lecture
+     * seule pour les non-éditeurs.
+     */
+
+    const inputIds = [
+      "matchs-detail-date",
+      "matchs-detail-categorie",
+      "matchs-detail-equipe1",
+      "matchs-detail-equipe2",
+      "matchs-detail-domicile",
+      "matchs-detail-lieu",
+      "matchs-detail-score",
+      "matchs-detail-responsable",
+    ];
+
+    inputIds.forEach(function (id) {
+      const el = document.getElementById(id);
+
+      if (el) {
+        el.disabled = !editor;
+      }
+    });
+
+    /*
+     * Boutons et sélecteurs
+     * d'écriture : masqués pour les
+     * non-éditeurs.
+     */
+
+    const writeControlIds = [
+      "matchs-detail-save",
+      "matchs-detail-arbitres-add",
+      "matchs-detail-arbitres-select",
+      "matchs-detail-otm-add",
+      "matchs-detail-otm-select",
+    ];
+
+    writeControlIds.forEach(function (id) {
+      const el = document.getElementById(id);
+
+      if (el) {
+        el.style.display = editor ? "" : "none";
+      }
+    });
+  }
+
+  /**
+   * Affiche un message dans la
+   * zone de message de la modale
+   * détail (succès ou erreur).
+   *
+   * Vide la zone si `text` est vide.
+   */
+  function showMatchsDetailMessage(text, isError) {
+    const message = document.getElementById("matchs-detail-message");
+
+    if (!message) {
+      return;
+    }
+
+    const value = String(text || "");
+
+    if (!value) {
+      message.textContent = "";
+
+      message.style.display = "none";
+
+      return;
+    }
+
+    message.textContent = value;
+
+    message.style.display = "block";
+
+    if (isError) {
+      message.style.color = "#b42318";
+
+      message.style.background = "#fef3f2";
+    } else {
+      message.style.color = "#067647";
+
+      message.style.background = "#ecfdf3";
+    }
+  }
+
+  /**
+   * Enregistre la modification du
+   * match courant via `updateMatch`.
+   *
+   * Construit le payload à partir
+   * des champs éditables ; le
+   * backend applique seul la
+   * détection d'idempotence
+   * (`UNCHANGED`) et la validation
+   * des ensembles autorisés.
+   *
+   * Pendant l'appel, le bouton
+   * « Enregistrer » est désactivé
+   * et son libellé passe à
+   * « Enregistrement... ».
+   *
+   * - `UPDATED`   → message succès,
+   *   rechargement de la liste
+   *   principale (compteurs à jour).
+   * - `UNCHANGED` → message
+   *   « Aucune modification »
+   *   (exigence 5.9).
+   */
+  function saveMatchDetail() {
+    /*
+     * Garde défensive côté UI
+     * (exigence 9.4). Le bouton est
+     * déjà masqué par
+     * `applyMatchsAccessControl` ; on
+     * ignore ici toute invocation
+     * programmatique par un
+     * non-éditeur. Le vrai contrôle
+     * reste côté backend (9.5).
+     */
+
+    if (!matchsIsEditor()) {
+      return;
+    }
+
+    const matchId = String(matchsDetailCurrentId || "").trim();
+
+    if (!matchId) {
+      showMatchsDetailMessage("Match introuvable.", true);
+
+      return;
+    }
+
+    const dateValue = String(
+      document.getElementById("matchs-detail-date")?.value || "",
+    ).trim();
+
+    const payload = {
+      Match_id: matchId,
+
+      Date: dateValue,
+
+      Categorie: String(
+        document.getElementById("matchs-detail-categorie")?.value || "",
+      ).trim(),
+
+      Equipe1: String(
+        document.getElementById("matchs-detail-equipe1")?.value || "",
+      ).trim(),
+
+      Equipe2: String(
+        document.getElementById("matchs-detail-equipe2")?.value || "",
+      ).trim(),
+
+      Domicile_exterieur: String(
+        document.getElementById("matchs-detail-domicile")?.value || "",
+      ).trim(),
+
+      Lieu: String(
+        document.getElementById("matchs-detail-lieu")?.value || "",
+      ).trim(),
+
+      Score: String(
+        document.getElementById("matchs-detail-score")?.value || "",
+      ).trim(),
+
+      Responsable_salle: String(
+        document.getElementById("matchs-detail-responsable")?.value || "",
+      ).trim(),
+    };
+
+    const saveButton = document.getElementById("matchs-detail-save");
+
+    if (saveButton) {
+      saveButton.disabled = true;
+
+      saveButton.textContent = "Enregistrement...";
+    }
+
+    showMatchsDetailMessage("", false);
+
+    google.script.run
+
+      .withSuccessHandler(function (result) {
+        if (saveButton) {
+          saveButton.disabled = false;
+
+          saveButton.textContent = "Enregistrer";
+        }
+
+        const action = (result && result.action) || "";
+
+        if (action === "UNCHANGED") {
+          showMatchsDetailMessage("Aucune modification.", false);
+
+          return;
+        }
+
+        showMatchsDetailMessage("Modifications enregistrées.", false);
+
+        /*
+         * Rafraîchit la liste principale
+         * pour refléter l'éventuel
+         * changement de date, catégorie
+         * ou lieu (badges, tri). Les
+         * compteurs d'affectations ne
+         * changent pas ici, mais la ligne
+         * doit être cohérente.
+         */
+
+        if (matchsCurrentSaison) {
+          loadMatchs(matchsCurrentSaison);
+        }
+      })
+
+      .withFailureHandler(function (error) {
+        if (saveButton) {
+          saveButton.disabled = false;
+
+          saveButton.textContent = "Enregistrer";
+        }
+
+        const message =
+          (error && error.message) ||
+          String(error) ||
+          "Une erreur est survenue.";
+
+        showMatchsDetailMessage(message, true);
+      })
+
+      .updateMatch(payload);
+  }
+
+  /**
+   * Ajoute une affectation (arbitre
+   * ou OTM) au match courant à
+   * partir du `<select>` d'ajout.
+   *
+   * Role est l'un de `"ARBITRE"` ou
+   * `"OTM"`. Au succès (`CREATED`
+   * ou `ALREADY_EXISTS`), la modale
+   * est rafraîchie via
+   * `refreshMatchsDetail()` pour
+   * refléter la nouvelle liste
+   * (exigence 6.6 / 8.5 :
+   * idempotence côté UI aussi).
+   */
+  function addMatchAffectation(role) {
+    /*
+     * Garde défensive côté UI
+     * (exigence 9.4). Les boutons
+     * « Ajouter » sont déjà masqués
+     * pour les non-éditeurs ; on
+     * ignore ici toute invocation
+     * programmatique. Le vrai
+     * contrôle reste côté backend
+     * (9.5).
+     */
+
+    if (!matchsIsEditor()) {
+      return;
+    }
+
+    const matchId = String(matchsDetailCurrentId || "").trim();
+
+    if (!matchId) {
+      showMatchsDetailMessage("Match introuvable.", true);
+
+      return;
+    }
+
+    const selectId =
+      role === "ARBITRE"
+        ? "matchs-detail-arbitres-select"
+        : "matchs-detail-otm-select";
+
+    const addButtonId =
+      role === "ARBITRE"
+        ? "matchs-detail-arbitres-add"
+        : "matchs-detail-otm-add";
+
+    const select = document.getElementById(selectId);
+
+    const addButton = document.getElementById(addButtonId);
+
+    const personneId = String((select && select.value) || "").trim();
+
+    if (!personneId) {
+      showMatchsDetailMessage("Sélectionner une personne.", true);
+
+      return;
+    }
+
+    if (addButton) {
+      addButton.disabled = true;
+    }
+
+    showMatchsDetailMessage("", false);
+
+    google.script.run
+
+      .withSuccessHandler(function (result) {
+        if (addButton) {
+          addButton.disabled = false;
+        }
+
+        const action = (result && result.action) || "";
+
+        if (action === "ALREADY_EXISTS") {
+          showMatchsDetailMessage("Affectation déjà existante.", false);
+        } else {
+          showMatchsDetailMessage("Affectation enregistrée.", false);
+        }
+
+        refreshMatchsDetail();
+
+        /*
+         * Rafraîchit aussi la liste
+         * principale pour mettre à jour
+         * les badges de comptage.
+         */
+
+        if (matchsCurrentSaison) {
+          loadMatchs(matchsCurrentSaison);
+        }
+      })
+
+      .withFailureHandler(function (error) {
+        if (addButton) {
+          addButton.disabled = false;
+        }
+
+        const message =
+          (error && error.message) ||
+          String(error) ||
+          "Une erreur est survenue.";
+
+        showMatchsDetailMessage(message, true);
+      })
+
+      .assignAffectation(matchId, personneId, role);
+  }
+
+  /**
+   * Retire une affectation du match
+   * courant par son `Affectation_id`.
+   *
+   * Au succès (`DELETED` ou
+   * `ALREADY_ABSENT`), la modale est
+   * rafraîchie via
+   * `refreshMatchsDetail()`.
+   */
+  function removeMatchAffectation(affectationId) {
+    const matchId = String(matchsDetailCurrentId || "").trim();
+
+    const normalized = String(affectationId || "").trim();
+
+    if (!normalized) {
+      showMatchsDetailMessage("Affectation introuvable.", true);
+
+      return;
+    }
+
+    if (!matchId) {
+      showMatchsDetailMessage("Match introuvable.", true);
+
+      return;
+    }
+
+    showMatchsDetailMessage("", false);
+
+    google.script.run
+
+      .withSuccessHandler(function (result) {
+        const action = (result && result.action) || "";
+
+        if (action === "ALREADY_ABSENT") {
+          showMatchsDetailMessage("Affectation déjà retirée.", false);
+        } else {
+          showMatchsDetailMessage("Affectation retirée.", false);
+        }
+
+        refreshMatchsDetail();
+
+        if (matchsCurrentSaison) {
+          loadMatchs(matchsCurrentSaison);
+        }
+      })
+
+      .withFailureHandler(function (error) {
+        const message =
+          (error && error.message) ||
+          String(error) ||
+          "Une erreur est survenue.";
+
+        showMatchsDetailMessage(message, true);
+      })
+
+      .removeAffectation(normalized);
+  }
+
+  /**
+   * Recharge le détail du match
+   * courant depuis le backend
+   * (après `assignAffectation` /
+   * `removeAffectation`), sans
+   * recharger les viviers déjà en
+   * mémoire ni fermer la modale.
+   */
+  function refreshMatchsDetail() {
+    const matchId = String(matchsDetailCurrentId || "").trim();
+
+    if (!matchId) {
+      return;
+    }
+
+    google.script.run
+
+      .withSuccessHandler(function (detail) {
+        /*
+         * fillMatchsDetailForm réécrit
+         * tous les champs et les listes
+         * d'affectations à partir du
+         * détail reçu. Un message en
+         * cours (succès ou erreur) a
+         * été posé par l'appelant et
+         * n'est pas effacé ici.
+         */
+
+        fillMatchsDetailForm(detail);
+      })
+
+      .withFailureHandler(function (error) {
+        const message =
+          (error && error.message) ||
+          String(error) ||
+          "Impossible de rafraîchir le match.";
+
+        showMatchsDetailMessage(message, true);
+      })
+
+      .getMatchDetail(matchId);
+  }
+
+  /*
+   * Fermeture avec Echap.
+   */
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
+      const overlay = document.getElementById("matchs-detail-overlay");
+
+      if (overlay && overlay.style.display !== "none") {
+        closeMatchDetail();
+      }
+    }
+  });
 
   /* =========================
    OUTILS HTML

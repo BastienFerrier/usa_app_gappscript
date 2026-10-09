@@ -2944,4 +2944,797 @@
       width: calc(100vw - 15px);
     }
   }
+
+  /* =========================
+   MATCHS - HEADER
+   ========================= */
+
+  .matchs-header {
+    display: flex;
+
+    align-items: flex-start;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+    margin-bottom: 22px;
+  }
+
+  .matchs-header h1 {
+    margin: 0 0 5px;
+  }
+
+  .matchs-subtitle {
+    color: #777;
+
+    font-size: 14px;
+
+    line-height: 1.4;
+  }
+
+  .matchs-saison {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+  }
+
+  .matchs-saison label {
+    color: #666;
+
+    font-size: 12px;
+
+    font-weight: bold;
+  }
+
+  .matchs-saison select {
+    min-width: 160px;
+
+    min-height: 38px;
+
+    padding: 8px 10px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    background: white;
+
+    color: #333;
+
+    font-size: 13px;
+
+    outline: none;
+  }
+
+  .matchs-saison select:focus {
+    border-color: #e0081a;
+  }
+
+  /* =========================
+   MATCHS - CARTE LISTE
+   ========================= */
+
+  .matchs-list-card {
+    padding: 0;
+
+    overflow: hidden;
+
+    border: 1px solid #ddd;
+
+    border-radius: 8px;
+
+    background: white;
+  }
+
+  /* =========================
+   MATCHS - FILTRES
+   ========================= */
+
+  .matchs-filters {
+    display: flex;
+
+    align-items: flex-end;
+
+    gap: 12px;
+
+    flex-wrap: wrap;
+
+    padding: 18px 20px;
+
+    border-bottom: 1px solid #eee;
+
+    background: #fafafa;
+  }
+
+  .matchs-filter {
+    min-width: 160px;
+  }
+
+  .matchs-filter label {
+    display: block;
+
+    margin-bottom: 6px;
+
+    color: #666;
+
+    font-size: 11px;
+
+    font-weight: bold;
+  }
+
+  .matchs-filter input,
+  .matchs-filter select {
+    width: 100%;
+
+    min-height: 38px;
+
+    padding: 8px 10px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    background: white;
+
+    color: #333;
+
+    font-size: 13px;
+
+    outline: none;
+  }
+
+  .matchs-filter input:focus,
+  .matchs-filter select:focus {
+    border-color: #e0081a;
+  }
+
+  .matchs-filter-actions {
+    display: flex;
+
+    align-items: flex-end;
+
+    min-width: 0;
+  }
+
+  /* =========================
+   MATCHS - RESUME
+   ========================= */
+
+  .matchs-summary {
+    padding: 11px 20px;
+
+    border-bottom: 1px solid #eee;
+
+    color: #777;
+
+    font-size: 12px;
+  }
+
+  .matchs-summary strong {
+    color: #222;
+  }
+
+  /* =========================
+   MATCHS - CHARGEMENT / VIDE
+   ========================= */
+
+  .matchs-loading,
+  .matchs-empty {
+    padding: 45px 25px;
+
+    color: #777;
+
+    font-size: 13px;
+
+    text-align: center;
+  }
+
+  /* =========================
+   MATCHS - TABLEAU
+   ========================= */
+
+  .matchs-table-container {
+    width: 100%;
+
+    overflow-x: auto;
+  }
+
+  .matchs-table {
+    width: 100%;
+
+    border-collapse: collapse;
+  }
+
+  .matchs-table th {
+    padding: 11px 16px;
+
+    border-bottom: 1px solid #ddd;
+
+    background: #fafafa;
+
+    color: #777;
+
+    font-size: 10px;
+
+    font-weight: bold;
+
+    text-align: left;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.5px;
+
+    white-space: nowrap;
+  }
+
+  .matchs-table td {
+    padding: 12px 16px;
+
+    border-bottom: 1px solid #eee;
+
+    color: #333;
+
+    font-size: 13px;
+
+    vertical-align: middle;
+  }
+
+  .matchs-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .matchs-table tbody tr {
+    cursor: pointer;
+
+    transition: background 0.12s ease;
+  }
+
+  .matchs-table tbody tr:hover {
+    background: #fafafa;
+  }
+
+  /* =========================
+   MATCHS - BADGES
+   ========================= */
+
+  .matchs-badge {
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    min-width: 24px;
+
+    padding: 3px 8px;
+
+    border-radius: 999px;
+
+    background: #f1f1f1;
+
+    color: #555;
+
+    font-size: 11px;
+
+    font-weight: bold;
+
+    line-height: 1.2;
+
+    white-space: nowrap;
+  }
+
+  .matchs-badge + .matchs-badge {
+    margin-left: 6px;
+  }
+
+  .matchs-badge-arbitre {
+    background: #fff1f2;
+
+    color: #b4232f;
+  }
+
+  .matchs-badge-otm {
+    background: #e8f0fa;
+
+    color: #20477c;
+  }
+
+  .matchs-badge-rs {
+    background: #f3eee9;
+
+    color: #6f4c3b;
+  }
+
+  .matchs-badge-empty {
+    background: #f1f1f1;
+
+    color: #999;
+  }
+
+  .matchs-badge-complete {
+    background: #e7f6ed;
+
+    color: #176b3a;
+  }
+
+  /* =========================
+   MATCHS - MODALE
+   ========================= */
+
+  .matchs-modal-overlay {
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 1000;
+
+    display: none;
+
+    padding: 30px;
+
+    overflow-y: auto;
+
+    background: rgba(49, 41, 33, 0.45);
+  }
+
+  .matchs-modal {
+    width: 100%;
+
+    max-width: 680px;
+
+    margin: 35px auto;
+
+    overflow: hidden;
+
+    border-radius: 10px;
+
+    background: white;
+
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  }
+
+  .matchs-modal-header {
+    display: flex;
+
+    align-items: flex-start;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+    padding: 20px 24px;
+
+    border-bottom: 1px solid #eee;
+  }
+
+  .matchs-modal-eyebrow {
+    margin-bottom: 4px;
+
+    color: #999;
+
+    font-size: 10px;
+
+    font-weight: bold;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.7px;
+  }
+
+  .matchs-modal-title {
+    margin: 0;
+
+    color: #312921;
+
+    font-size: 20px;
+
+    font-weight: bold;
+  }
+
+  .matchs-modal-close {
+    width: 34px;
+
+    height: 34px;
+
+    flex-shrink: 0;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 0;
+
+    border: none;
+
+    border-radius: 50%;
+
+    background: #f5f5f5;
+
+    color: #666;
+
+    font-size: 23px;
+
+    cursor: pointer;
+  }
+
+  .matchs-modal-close:hover {
+    background: #eee;
+
+    color: #222;
+  }
+
+  .matchs-modal-body {
+    padding: 24px;
+  }
+
+  .matchs-modal-grid {
+    display: grid;
+
+    grid-template-columns:
+      1fr
+      1fr;
+
+    gap: 16px;
+  }
+
+  .matchs-modal-field {
+    margin-bottom: 16px;
+  }
+
+  .matchs-modal-field label {
+    display: block;
+
+    margin-bottom: 6px;
+
+    color: #555;
+
+    font-size: 11px;
+
+    font-weight: bold;
+  }
+
+  .matchs-modal-field input,
+  .matchs-modal-field select,
+  .matchs-modal-field textarea {
+    width: 100%;
+
+    padding: 9px 10px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    background: white;
+
+    color: #222;
+
+    font-family: inherit;
+
+    font-size: 13px;
+
+    outline: none;
+  }
+
+  .matchs-modal-field input:focus,
+  .matchs-modal-field select:focus,
+  .matchs-modal-field textarea:focus {
+    border-color: #e0081a;
+  }
+
+  .matchs-modal-field input:disabled,
+  .matchs-modal-field select:disabled,
+  .matchs-modal-field textarea:disabled {
+    background: #f8f8f8;
+
+    color: #555;
+
+    cursor: not-allowed;
+  }
+
+  /* =========================
+   MATCHS - SECTION AFFECTATIONS
+   ========================= */
+
+  .matchs-modal-section {
+    margin-top: 20px;
+
+    padding-top: 18px;
+
+    border-top: 1px solid #eee;
+  }
+
+  .matchs-modal-section h3 {
+    margin: 0 0 12px;
+
+    color: #312921;
+
+    font-size: 13px;
+
+    font-weight: bold;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.5px;
+  }
+
+  .matchs-affectation-list {
+    margin: 0 0 10px;
+
+    padding: 0;
+
+    list-style: none;
+  }
+
+  .matchs-affectation-list li {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+    padding: 8px 10px;
+
+    border: 1px solid #eee;
+
+    border-radius: 6px;
+
+    background: #fafafa;
+
+    color: #333;
+
+    font-size: 13px;
+  }
+
+  .matchs-affectation-list li + li {
+    margin-top: 6px;
+  }
+
+  .matchs-affectation-list .matchs-affectation-remove {
+    padding: 2px 8px;
+
+    border: none;
+
+    background: transparent;
+
+    color: #e0081a;
+
+    font-size: 12px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+  }
+
+  .matchs-affectation-list .matchs-affectation-remove:hover {
+    text-decoration: underline;
+  }
+
+  .matchs-affectation-list .matchs-affectation-remove:disabled {
+    opacity: 0.5;
+
+    cursor: wait;
+  }
+
+  .matchs-affectation-empty {
+    margin-bottom: 10px;
+
+    padding: 10px;
+
+    border: 1px dashed #ddd;
+
+    border-radius: 6px;
+
+    background: #fafafa;
+
+    color: #999;
+
+    font-size: 12px;
+
+    text-align: center;
+  }
+
+  .matchs-affectation-add {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+  }
+
+  .matchs-affectation-add select {
+    flex: 1;
+
+    min-height: 38px;
+
+    padding: 8px 10px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    background: white;
+
+    color: #333;
+
+    font-size: 13px;
+
+    outline: none;
+  }
+
+  .matchs-affectation-add select:focus {
+    border-color: #e0081a;
+  }
+
+  .matchs-affectation-add select:disabled,
+  .matchs-affectation-add button:disabled {
+    opacity: 0.55;
+
+    cursor: not-allowed;
+  }
+
+  .matchs-affectation-coming {
+    margin-top: 8px;
+
+    padding: 10px;
+
+    border: 1px dashed #ddd;
+
+    border-radius: 6px;
+
+    background: #fafafa;
+
+    color: #999;
+
+    font-size: 12px;
+
+    font-style: italic;
+
+    text-align: center;
+  }
+
+  /* =========================
+   MATCHS - MESSAGE MODALE
+   ========================= */
+
+  .matchs-modal-message {
+    display: none;
+
+    margin-top: 16px;
+
+    padding: 10px 12px;
+
+    border-radius: 6px;
+
+    font-size: 12px;
+  }
+
+  .matchs-modal-message.success {
+    display: block;
+
+    background: #e7f6ed;
+
+    color: #176b3a;
+  }
+
+  .matchs-modal-message.info {
+    display: block;
+
+    background: #e8f0fa;
+
+    color: #20477c;
+  }
+
+  .matchs-modal-message.error {
+    display: block;
+
+    background: #fdeaea;
+
+    color: #a61b1b;
+  }
+
+  /* =========================
+   MATCHS - FOOTER MODALE
+   ========================= */
+
+  .matchs-modal-footer {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-top: 8px;
+
+    padding-top: 18px;
+
+    border-top: 1px solid #eee;
+  }
+
+  .matchs-modal-actions {
+    display: flex;
+
+    gap: 8px;
+  }
+
+  .matchs-modal-actions button:disabled {
+    opacity: 0.5;
+
+    cursor: wait;
+  }
+
+  /* =========================
+   MATCHS - RESPONSIVE
+   ========================= */
+
+  @media (max-width: 700px) {
+    .matchs-header {
+      flex-direction: column;
+    }
+
+    .matchs-saison {
+      width: 100%;
+    }
+
+    .matchs-saison select {
+      flex: 1;
+    }
+
+    .matchs-filters {
+      align-items: stretch;
+    }
+
+    .matchs-filter,
+    .matchs-filter-actions {
+      width: 100%;
+
+      min-width: 0;
+    }
+
+    .matchs-modal-overlay {
+      padding: 10px;
+    }
+
+    .matchs-modal {
+      margin: 10px auto;
+    }
+
+    .matchs-modal-grid {
+      grid-template-columns: 1fr;
+
+      gap: 0;
+    }
+
+    .matchs-modal-body {
+      padding: 18px;
+    }
+
+    .matchs-modal-footer {
+      align-items: stretch;
+
+      flex-direction: column-reverse;
+    }
+
+    .matchs-modal-actions {
+      width: 100%;
+    }
+
+    .matchs-modal-actions button {
+      flex: 1;
+    }
+
+    .matchs-affectation-add {
+      flex-direction: column;
+
+      align-items: stretch;
+    }
+  }
 </style>

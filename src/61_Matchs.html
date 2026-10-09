@@ -1,0 +1,375 @@
+<section id="page-matchs" class="app-page hidden">
+  <!-- =========================
+       HEADER
+       ========================= -->
+
+  <div class="matchs-header">
+    <div>
+      <h1>Matchs</h1>
+
+      <div class="matchs-subtitle">
+        Affectation des arbitres et OTM aux matchs de la saison.
+      </div>
+    </div>
+
+    <div class="matchs-saison">
+      <label for="matchs-saison-select"> Saison </label>
+
+      <select
+        id="matchs-saison-select"
+        onchange="onMatchsSaisonChange()"
+      ></select>
+    </div>
+  </div>
+
+  <!-- =========================
+       LISTE / FILTRES
+       ========================= -->
+
+  <div class="matchs-list-card">
+    <!-- FILTRES -->
+
+    <div class="matchs-filters">
+      <div class="matchs-filter">
+        <label for="matchs-filter-categorie"> Catégorie </label>
+
+        <select id="matchs-filter-categorie" onchange="filterMatchs()">
+          <option value="">Toutes les catégories</option>
+
+          <option value="U13F">U13F</option>
+
+          <option value="U13M">U13M</option>
+
+          <option value="U15F">U15F</option>
+
+          <option value="U15M">U15M</option>
+
+          <option value="U18F">U18F</option>
+
+          <option value="U18M">U18M</option>
+
+          <option value="SENIORS_F">Seniors F</option>
+
+          <option value="SENIORS_M">Seniors M</option>
+        </select>
+      </div>
+
+      <div class="matchs-filter">
+        <label for="matchs-filter-lieu"> Lieu </label>
+
+        <select id="matchs-filter-lieu" onchange="filterMatchs()">
+          <option value="">Tous les lieux</option>
+
+          <option value="PIERRE_DENIS">Pierre Denis</option>
+
+          <option value="GERMAINE_TILLON">Germaine Tillon</option>
+
+          <option value="EXTERIEUR">Extérieur</option>
+        </select>
+      </div>
+
+      <div class="matchs-filter matchs-filter-actions">
+        <button
+          type="button"
+          class="secondary-button"
+          onclick="clearMatchsFilters()"
+        >
+          Effacer
+        </button>
+      </div>
+    </div>
+
+    <!-- RESUME -->
+
+    <div id="matchs-summary" class="matchs-summary"></div>
+
+    <!-- CHARGEMENT -->
+
+    <div id="matchs-loading" class="matchs-loading">Chargement...</div>
+
+    <!-- TABLEAU -->
+
+    <div
+      id="matchs-table-container"
+      class="matchs-table-container"
+      style="display: none"
+    >
+      <table class="matchs-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+
+            <th>Catégorie</th>
+
+            <th>Équipes</th>
+
+            <th>Lieu</th>
+
+            <th>Score</th>
+
+            <th>Affectations</th>
+          </tr>
+        </thead>
+
+        <tbody id="matchs-table-body"></tbody>
+      </table>
+    </div>
+
+    <!-- VIDE -->
+
+    <div id="matchs-empty" class="matchs-empty" style="display: none">
+      Aucun match pour la saison sélectionnée.
+    </div>
+  </div>
+
+  <!-- ============================================================
+       MODALE DETAIL / EDITION D'UN MATCH
+       ============================================================ -->
+
+  <div
+    id="matchs-detail-overlay"
+    class="matchs-modal-overlay"
+    onclick="handleMatchsDetailOverlayClick(event)"
+  >
+    <div id="matchs-detail-modal" class="matchs-modal">
+      <!-- HEADER -->
+
+      <div class="matchs-modal-header">
+        <div>
+          <div class="matchs-modal-eyebrow">Fiche match</div>
+
+          <div id="matchs-detail-title" class="matchs-modal-title"></div>
+        </div>
+
+        <button
+          type="button"
+          class="matchs-modal-close"
+          onclick="closeMatchDetail()"
+          aria-label="Fermer"
+        >
+          ×
+        </button>
+      </div>
+
+      <!-- CONTENU -->
+
+      <div class="matchs-modal-body">
+        <input id="matchs-detail-id" type="hidden" />
+
+        <!-- DATE + CATEGORIE -->
+
+        <div class="matchs-modal-grid">
+          <div class="matchs-modal-field">
+            <label for="matchs-detail-date"> Date </label>
+
+            <input id="matchs-detail-date" type="datetime-local" />
+          </div>
+
+          <div class="matchs-modal-field">
+            <label for="matchs-detail-categorie"> Catégorie </label>
+
+            <select id="matchs-detail-categorie">
+              <option value="">—</option>
+
+              <option value="U13F">U13F</option>
+
+              <option value="U13M">U13M</option>
+
+              <option value="U15F">U15F</option>
+
+              <option value="U15M">U15M</option>
+
+              <option value="U18F">U18F</option>
+
+              <option value="U18M">U18M</option>
+
+              <option value="SENIORS_F">Seniors F</option>
+
+              <option value="SENIORS_M">Seniors M</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- EQUIPES -->
+
+        <div class="matchs-modal-grid">
+          <div class="matchs-modal-field">
+            <label for="matchs-detail-equipe1"> Équipe 1 </label>
+
+            <input id="matchs-detail-equipe1" type="text" autocomplete="off" />
+          </div>
+
+          <div class="matchs-modal-field">
+            <label for="matchs-detail-equipe2"> Équipe 2 </label>
+
+            <input id="matchs-detail-equipe2" type="text" autocomplete="off" />
+          </div>
+        </div>
+
+        <!-- DOMICILE / EXTERIEUR + LIEU -->
+
+        <div class="matchs-modal-grid">
+          <div class="matchs-modal-field">
+            <label for="matchs-detail-domicile">
+              Domicile / Extérieur
+            </label>
+
+            <select id="matchs-detail-domicile">
+              <option value="">—</option>
+
+              <option value="DOMICILE">Domicile</option>
+
+              <option value="EXTERIEUR">Extérieur</option>
+            </select>
+          </div>
+
+          <div class="matchs-modal-field">
+            <label for="matchs-detail-lieu"> Lieu </label>
+
+            <select id="matchs-detail-lieu">
+              <option value="">—</option>
+
+              <option value="PIERRE_DENIS">Pierre Denis</option>
+
+              <option value="GERMAINE_TILLON">Germaine Tillon</option>
+
+              <option value="EXTERIEUR">Extérieur</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- SCORE + RESPONSABLE SALLE -->
+
+        <div class="matchs-modal-grid">
+          <div class="matchs-modal-field">
+            <label for="matchs-detail-score"> Score </label>
+
+            <input
+              id="matchs-detail-score"
+              type="text"
+              autocomplete="off"
+              placeholder="62-58"
+            />
+          </div>
+
+          <div class="matchs-modal-field">
+            <label for="matchs-detail-responsable">
+              Responsable de salle
+            </label>
+
+            <input
+              id="matchs-detail-responsable"
+              type="text"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+
+        <!-- ARBITRES -->
+
+        <div class="matchs-modal-section">
+          <h3>Arbitres</h3>
+
+          <ul
+            id="matchs-detail-arbitres-list"
+            class="matchs-affectation-list"
+          ></ul>
+
+          <div
+            id="matchs-detail-arbitres-empty"
+            class="matchs-affectation-empty"
+            style="display: none"
+          >
+            Aucun arbitre affecté.
+          </div>
+
+          <div class="matchs-affectation-add">
+            <select id="matchs-detail-arbitres-select">
+              <option value="">Sélectionner un arbitre...</option>
+            </select>
+
+            <button
+              id="matchs-detail-arbitres-add"
+              type="button"
+              class="secondary-button"
+              onclick="addMatchAffectation('ARBITRE')"
+            >
+              Ajouter
+            </button>
+          </div>
+        </div>
+
+        <!-- OTM -->
+
+        <div class="matchs-modal-section">
+          <h3>OTM</h3>
+
+          <ul
+            id="matchs-detail-otm-list"
+            class="matchs-affectation-list"
+          ></ul>
+
+          <div
+            id="matchs-detail-otm-empty"
+            class="matchs-affectation-empty"
+            style="display: none"
+          >
+            Aucun OTM affecté.
+          </div>
+
+          <div class="matchs-affectation-add">
+            <select id="matchs-detail-otm-select">
+              <option value="">Sélectionner un OTM...</option>
+            </select>
+
+            <button
+              id="matchs-detail-otm-add"
+              type="button"
+              class="secondary-button"
+              onclick="addMatchAffectation('OTM')"
+            >
+              Ajouter
+            </button>
+          </div>
+
+          <div
+            id="matchs-detail-otm-coming"
+            class="matchs-affectation-coming"
+            style="display: none"
+          >
+            Module OTM à venir.
+          </div>
+        </div>
+
+        <!-- MESSAGE -->
+
+        <div id="matchs-detail-message" class="matchs-modal-message"></div>
+
+        <!-- ACTIONS -->
+
+        <div class="matchs-modal-footer">
+          <div></div>
+
+          <div class="matchs-modal-actions">
+            <button
+              type="button"
+              class="secondary-button"
+              onclick="closeMatchDetail()"
+            >
+              Annuler
+            </button>
+
+            <button
+              id="matchs-detail-save"
+              type="button"
+              class="primary-button"
+              onclick="saveMatchDetail()"
+            >
+              Enregistrer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

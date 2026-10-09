@@ -1,0 +1,348 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "2.1 Écrire un initialiseur idempotent des onglets du classeur SPORT": [
+      {
+        "executionId": "3c508dfa-f559-4f4f-9902-ee77ca833c7e",
+        "chatSessionId": "sess_a4c4164e-a997-4af1-8b58-53c6bce5342f",
+        "timestamp": 1791275170513
+      },
+      {
+        "executionId": "5985050b-4c03-4b8a-ab00-5903cee0be77",
+        "chatSessionId": "sess_a86f869e-22cb-4e3f-8356-c4ea81c3aec7",
+        "timestamp": 1791276474372
+      },
+      {
+        "executionId": "5985050b-4c03-4b8a-ab00-5903cee0be77",
+        "chatSessionId": "sess_a86f869e-22cb-4e3f-8356-c4ea81c3aec7",
+        "timestamp": 1791276582277
+      }
+    ],
+    "1. Déclarer les constantes de configuration du module": [
+      {
+        "executionId": "2ac43ec1-0d93-42f2-9e59-4d4ee4bb5059",
+        "chatSessionId": "sess_2aca10e1-fb52-4352-8b65-d06b2f19030a",
+        "timestamp": 1791276359675
+      },
+      {
+        "executionId": "2ac43ec1-0d93-42f2-9e59-4d4ee4bb5059",
+        "chatSessionId": "sess_2aca10e1-fb52-4352-8b65-d06b2f19030a",
+        "timestamp": 1791276424384
+      }
+    ],
+    "2. Préparer les onglets Sheets (tables du module)": [
+      {
+        "executionId": "5985050b-4c03-4b8a-ab00-5903cee0be77",
+        "chatSessionId": "sess_a86f869e-22cb-4e3f-8356-c4ea81c3aec7",
+        "timestamp": 1791276582418
+      }
+    ],
+    "3.1 Implémenter les helpers d'accès et d'identité": [
+      {
+        "executionId": "902acb8c-9b7a-4e6a-a287-9929dd37adb8",
+        "chatSessionId": "sess_86638404-e8f2-4b40-9fbf-484b4d5a59da",
+        "timestamp": 1791276695862
+      },
+      {
+        "executionId": "902acb8c-9b7a-4e6a-a287-9929dd37adb8",
+        "chatSessionId": "sess_86638404-e8f2-4b40-9fbf-484b4d5a59da",
+        "timestamp": 1791276763813
+      }
+    ],
+    "3.3 Implémenter le logging d'historique mutualisé": [
+      {
+        "executionId": "902acb8c-9b7a-4e6a-a287-9929dd37adb8",
+        "chatSessionId": "sess_86638404-e8f2-4b40-9fbf-484b4d5a59da",
+        "timestamp": 1791276766256
+      },
+      {
+        "executionId": "902acb8c-9b7a-4e6a-a287-9929dd37adb8",
+        "chatSessionId": "sess_86638404-e8f2-4b40-9fbf-484b4d5a59da",
+        "timestamp": 1791276999161
+      }
+    ],
+    "3. Implémenter les helpers backend internes": [
+      {
+        "executionId": "902acb8c-9b7a-4e6a-a287-9929dd37adb8",
+        "chatSessionId": "sess_86638404-e8f2-4b40-9fbf-484b4d5a59da",
+        "timestamp": 1791276999280
+      }
+    ],
+    "4.1 Implémenter `getActiveSaison()` et `listSaisons()`": [
+      {
+        "executionId": "a304231b-b21f-4d9b-96d8-ea7fa5d8c90d",
+        "chatSessionId": "sess_40c4b61f-0f25-45c1-8ecc-acde11a33007",
+        "timestamp": 1791277110172
+      }
+    ],
+    "5.1 Implémenter `listMatchs(saisonId)`": [
+      {
+        "executionId": "6c37cf6b-25ca-4e6f-8f8b-3af5aef6427c",
+        "chatSessionId": "sess_c658f7a4-f38d-4683-95ad-24b170318f7a",
+        "timestamp": 1791277308959
+      },
+      {
+        "executionId": "6c37cf6b-25ca-4e6f-8f8b-3af5aef6427c",
+        "chatSessionId": "sess_c658f7a4-f38d-4683-95ad-24b170318f7a",
+        "timestamp": 1791277416826
+      }
+    ],
+    "5. Implémenter la liste des matchs avec comptage d'affectations": [
+      {
+        "executionId": "6c37cf6b-25ca-4e6f-8f8b-3af5aef6427c",
+        "chatSessionId": "sess_c658f7a4-f38d-4683-95ad-24b170318f7a",
+        "timestamp": 1791277416914
+      }
+    ],
+    "6.1 Implémenter `getArbitresAffectables(saisonId)`": [
+      {
+        "executionId": "50fd0790-a60a-47a2-a2e5-a1be6e31bdbb",
+        "chatSessionId": "sess_b9e93636-5706-4089-bc28-85e099e1e053",
+        "timestamp": 1791279949786
+      },
+      {
+        "executionId": "50fd0790-a60a-47a2-a2e5-a1be6e31bdbb",
+        "chatSessionId": "sess_b9e93636-5706-4089-bc28-85e099e1e053",
+        "timestamp": 1791280039312
+      }
+    ],
+    "6.2 Implémenter `getOtmAffectables(saisonId)` avec fallback gracieux": [
+      {
+        "executionId": "50fd0790-a60a-47a2-a2e5-a1be6e31bdbb",
+        "chatSessionId": "sess_b9e93636-5706-4089-bc28-85e099e1e053",
+        "timestamp": 1791280040582
+      },
+      {
+        "executionId": "50fd0790-a60a-47a2-a2e5-a1be6e31bdbb",
+        "chatSessionId": "sess_b9e93636-5706-4089-bc28-85e099e1e053",
+        "timestamp": 1791280098899
+      }
+    ],
+    "6. Implémenter les viviers affectables (arbitres + OTM)": [
+      {
+        "executionId": "50fd0790-a60a-47a2-a2e5-a1be6e31bdbb",
+        "chatSessionId": "sess_b9e93636-5706-4089-bc28-85e099e1e053",
+        "timestamp": 1791280098964
+      }
+    ],
+    "7.1 Implémenter `assertPersonneDansVivier(personneId, role, saisonId)` et `getMatchDetail(matchId)`": [
+      {
+        "executionId": "840f3e83-6f85-4a57-aa2a-dc2d06c7f1f4",
+        "chatSessionId": "sess_1ee66407-462d-4c5f-a86d-bf29f065de44",
+        "timestamp": 1791280701582
+      },
+      {
+        "executionId": "840f3e83-6f85-4a57-aa2a-dc2d06c7f1f4",
+        "chatSessionId": "sess_1ee66407-462d-4c5f-a86d-bf29f065de44",
+        "timestamp": 1791281071913
+      }
+    ],
+    "7. Implémenter le détail d'un match": [
+      {
+        "executionId": "840f3e83-6f85-4a57-aa2a-dc2d06c7f1f4",
+        "chatSessionId": "sess_1ee66407-462d-4c5f-a86d-bf29f065de44",
+        "timestamp": 1791281072185
+      }
+    ],
+    "8.1 Implémenter `updateMatch(payload)`": [
+      {
+        "executionId": "77bb7f0e-133c-4967-8128-a7f0d8c7a69a",
+        "chatSessionId": "sess_d9615630-280d-4375-b89b-79f308de10ce",
+        "timestamp": 1791281125748
+      },
+      {
+        "executionId": "77bb7f0e-133c-4967-8128-a7f0d8c7a69a",
+        "chatSessionId": "sess_d9615630-280d-4375-b89b-79f308de10ce",
+        "timestamp": 1791281281285
+      }
+    ],
+    "8. Implémenter la modification d'un match (écriture sous verrou)": [
+      {
+        "executionId": "77bb7f0e-133c-4967-8128-a7f0d8c7a69a",
+        "chatSessionId": "sess_d9615630-280d-4375-b89b-79f308de10ce",
+        "timestamp": 1791281281365
+      }
+    ],
+    "9.1 Implémenter `assignAffectation(matchId, personneId, role)`": [
+      {
+        "executionId": "4674e090-8061-4a57-8251-780e00c938ec",
+        "chatSessionId": "sess_e8758add-8b2e-43cf-8c22-38fc1906920f",
+        "timestamp": 1791281407648
+      },
+      {
+        "executionId": "4674e090-8061-4a57-8251-780e00c938ec",
+        "chatSessionId": "sess_e8758add-8b2e-43cf-8c22-38fc1906920f",
+        "timestamp": 1791281505347
+      }
+    ],
+    "9. Implémenter l'affectation d'une personne (arbitre / OTM)": [
+      {
+        "executionId": "4674e090-8061-4a57-8251-780e00c938ec",
+        "chatSessionId": "sess_e8758add-8b2e-43cf-8c22-38fc1906920f",
+        "timestamp": 1791281505435
+      }
+    ],
+    "10.1 Implémenter `removeAffectation(affectationId)`": [
+      {
+        "executionId": "b0c0c874-32da-4e3d-93ce-c1dee8fdded5",
+        "chatSessionId": "sess_e5c5f24d-4078-45e7-b106-1e41606cb635",
+        "timestamp": 1791282927950
+      },
+      {
+        "executionId": "b0c0c874-32da-4e3d-93ce-c1dee8fdded5",
+        "chatSessionId": "sess_e5c5f24d-4078-45e7-b106-1e41606cb635",
+        "timestamp": 1791283320496
+      },
+      {
+        "executionId": "200e23c7-11bd-49e0-b790-4db30a20094f",
+        "chatSessionId": "sess_fa6eb647-f2e1-4ad4-a12e-3dd92cc72a5c",
+        "timestamp": 1791283359012
+      },
+      {
+        "executionId": "200e23c7-11bd-49e0-b790-4db30a20094f",
+        "chatSessionId": "sess_fa6eb647-f2e1-4ad4-a12e-3dd92cc72a5c",
+        "timestamp": 1791283454054
+      }
+    ],
+    "10. Implémenter le retrait d'une affectation (écriture sous verrou)": [
+      {
+        "executionId": "b0c0c874-32da-4e3d-93ce-c1dee8fdded5",
+        "chatSessionId": "sess_e5c5f24d-4078-45e7-b106-1e41606cb635",
+        "timestamp": 1791283320571
+      }
+    ],
+    "11. Checkpoint backend — Vérifier la fiabilité du backend avant l'interface": [
+      {
+        "executionId": "97960b5d-1356-49cd-b5fc-83fb87a455e0",
+        "chatSessionId": "sess_c1de274f-c652-4582-a8ae-62f64f61bb18",
+        "timestamp": 1791283529435
+      },
+      {
+        "executionId": "97960b5d-1356-49cd-b5fc-83fb87a455e0",
+        "chatSessionId": "sess_c1de274f-c652-4582-a8ae-62f64f61bb18",
+        "timestamp": 1791283704066
+      }
+    ],
+    "12.1 Créer la structure et le sélecteur de saison": [
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283745848
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283758407
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283910355
+      }
+    ],
+    "12.2 Implémenter la logique de liste, saison et filtres": [
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283745902
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283913074
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791284616765
+      }
+    ],
+    "12.4 Implémenter la modale détail/édition et les affectations": [
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283745955
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283914200
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283930905
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791284617273
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791284837692
+      }
+    ],
+    "12.5 Implémenter le contrôle d'accès cosmétique côté UI": [
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283746015
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283915084
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283931779
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791284838788
+      },
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791284997974
+      }
+    ],
+    "13.1 Ajouter les styles `matchs-*`": [
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283746076
+      },
+      {
+        "executionId": "941456a9-4d15-44ea-8305-d933d81c161f",
+        "chatSessionId": "sess_49af2372-7e46-42b2-804c-7b86ea6c998a",
+        "timestamp": 1791287225385
+      }
+    ],
+    "13.2 Câbler la navigation et le chargement paresseux": [
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283746142
+      }
+    ],
+    "14. Checkpoint final — Vérifier l'intégration de bout en bout": [
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791283746216
+      }
+    ],
+    "12. Construire l'interface du module (`61_Matchs.html`)": [
+      {
+        "executionId": "f103c356-3535-447a-baea-64763eb18ff3",
+        "chatSessionId": "sess_fdc97938-0122-451f-9918-aa7e4e39bbe1",
+        "timestamp": 1791284998049
+      }
+    ]
+  }
+}

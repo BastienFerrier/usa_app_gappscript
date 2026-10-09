@@ -55,3 +55,50 @@ const ROLE_PERMISSIONS = {
     ADHESIONS: "NONE",
   },
 };
+
+/**
+ * Noms des onglets utilisés comme tables.
+ *
+ * Centralisés pour éviter les chaînes magiques
+ * dispersées dans les modules.
+ */
+const SHEETS = {
+  MATCHS: "Matchs",
+  AFFECTATIONS_MATCHS: "Affectations_matchs",
+  ARBITRAGE: "Arbitrage",
+  SAISONS: "Saisons",
+  HISTORIQUE: "Historique",
+};
+
+/**
+ * Lieux possibles d'un match.
+ *
+ * Valeurs techniques stables (sans accent ni espace).
+ * Les libellés d'affichage sont gérés côté client.
+ */
+const MATCHS_LIEUX = ["PIERRE_DENIS", "GERMAINE_TILLON", "EXTERIEUR"];
+
+/**
+ * Catégories d'un match.
+ *
+ * Dupliquées volontairement depuis ARBITRAGE_CATEGORIES_JOUEURS :
+ * les deux listes ont la même valeur aujourd'hui mais répondent
+ * à des besoins métier distincts (vivier d'arbitrage vs catégories
+ * de matchs) et peuvent diverger. La validation côté serveur
+ * s'appuie sur MATCHS_CATEGORIES.
+ */
+const MATCHS_CATEGORIES = [
+  "U13F",
+  "U13M",
+  "U15F",
+  "U15M",
+  "U18F",
+  "U18M",
+  "SENIORS_F",
+  "SENIORS_M",
+];
+
+/**
+ * Rôles d'affectation d'une personne à un match.
+ */
+const AFFECTATION_ROLES = ["ARBITRE", "OTM", "RESPONSABLE_SALLE"];

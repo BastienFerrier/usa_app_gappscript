@@ -4295,13 +4295,12 @@ function syncFbiToAdhesions(saisonId) {
           serializeHistoryValue(foundLicence),
         ]);
       } else if (
-
-      /*
-       * Une licence existe déjà.
-       *
-       * Si FBI retourne une licence
-       * différente, on n'écrase rien.
-       */
+        /*
+         * Une licence existe déjà.
+         *
+         * Si FBI retourne une licence
+         * différente, on n'écrase rien.
+         */
         foundLicence &&
         currentLicence &&
         foundLicence !== currentLicence
