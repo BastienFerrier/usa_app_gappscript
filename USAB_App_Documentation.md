@@ -311,6 +311,7 @@ Principaux champs :
 Adhesion_id
 Saison_id
 Contact_id
+Statut_adhesion
 Assoconnect_billet
 Assoconnect_transaction
 Statut_assoconnect
@@ -340,6 +341,16 @@ Date_maj
 
 L'adhésion est rattachée à une saison. Une même personne conserve son
 `Contact_id` d'une saison à l'autre mais possède une nouvelle adhésion.
+
+`Statut_adhesion` porte le cycle de vie de l'adhésion :
+
+```text
+ACTIVE
+ANNULEE
+```
+
+Une adhésion annulée est conservée pour l'historique, mais elle est masquée
+par défaut dans le suivi opérationnel.
 
 #### `Import_Assoconnect`
 

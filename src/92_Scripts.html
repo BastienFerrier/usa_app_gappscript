@@ -3411,6 +3411,14 @@
    DASHBOARD ADHESIONS
    ========================= */
 
+  function isCancelledAdhesion(adhesion) {
+    return String(adhesion?.Statut_adhesion || "ACTIVE").trim() === "ANNULEE";
+  }
+
+  function isActiveAdhesion(adhesion) {
+    return !isCancelledAdhesion(adhesion);
+  }
+
   /**
    * Construit le dashboard
    * de progression.
@@ -3428,10 +3436,12 @@
       loading.style.display = "none";
     }
 
-    if (!adhesionsData || adhesionsData.length === 0) {
+    const activeAdhesions = (adhesionsData || []).filter(isActiveAdhesion);
+
+    if (activeAdhesions.length === 0) {
       container.innerHTML = `
         <div class="adhesion-dashboard-empty">
-          Aucune adhésion.
+          Aucune adhésion active.
         </div>
       `;
 
@@ -3446,7 +3456,7 @@
 
     const categories = {};
 
-    adhesionsData.forEach((adhesion) => {
+    activeAdhesions.forEach((adhesion) => {
       const categorie = adhesion.Categorie || "Sans catégorie";
 
       if (!categories[categorie]) {
@@ -3473,7 +3483,7 @@
      * Ligne TOTAL.
      */
 
-    const totalStats = calculateAdhesionDashboardStats(adhesionsData);
+    const totalStats = calculateAdhesionDashboardStats(activeAdhesions);
 
     let html = `
       ${renderAdhesionDashboardRow("TOTAL", "", totalStats, true)}
@@ -3679,7 +3689,11 @@
 
     const statusInput = document.getElementById("adhesions-status-filter");
 
-    if (!searchInput || !categoryInput || !statusInput) {
+    const cancelledInput = document.getElementById(
+      "adhesions-cancelled-toggle",
+    );
+
+    if (!searchInput || !categoryInput || !statusInput || !cancelledInput) {
       return;
     }
 
@@ -3688,6 +3702,8 @@
     const category = categoryInput.value;
 
     const status = statusInput.value;
+
+    const lifecycle = cancelledInput.checked ? "ANNULEE" : "ACTIVE";
 
     const filtered = adhesionsData.filter((adhesion) => {
       const identity = (adhesion.Prenom + " " + adhesion.Nom).toLowerCase();
@@ -3701,6 +3717,14 @@
       }
 
       if (status && adhesion.Suivi_statut !== status) {
+        return false;
+      }
+
+      const adhesionStatus = String(
+        adhesion.Statut_adhesion || "ACTIVE",
+      ).trim();
+
+      if (adhesionStatus !== lifecycle) {
         return false;
       }
 
@@ -3734,6 +3758,10 @@
       const tr = document.createElement("tr");
 
       tr.dataset.adhesionId = adhesion.Adhesion_id;
+
+      if (isCancelledAdhesion(adhesion)) {
+        tr.classList.add("adhesion-row-cancelled");
+      }
 
       tr.innerHTML = `
           <td>
@@ -4316,6 +4344,34 @@
    ========================= */
 
   /**
+   * Met à jour l'affichage du cycle
+   * de vie dans la fiche adhésion.
+   */
+  function updateAdhesionLifecycleUI(adhesion) {
+    const status = isCancelledAdhesion(adhesion) ? "ANNULEE" : "ACTIVE";
+
+    const badge = document.getElementById("adhesion-detail-lifecycle");
+
+    const actionButton = document.getElementById(
+      "adhesion-detail-status-action",
+    );
+
+    if (badge) {
+      badge.textContent =
+        status === "ANNULEE" ? "Adhésion annulée" : "Adhésion active";
+
+      badge.classList.toggle("cancelled", status === "ANNULEE");
+    }
+
+    if (actionButton) {
+      actionButton.textContent =
+        status === "ANNULEE" ? "Réactiver l'adhésion" : "Annuler l'adhésion";
+
+      actionButton.classList.toggle("reactivate", status === "ANNULEE");
+    }
+  }
+
+  /**
    * Ouvre le panneau latéral.
    */
   function openAdhesionDetail(adhesionId) {
@@ -4328,6 +4384,8 @@
     }
 
     currentAdhesionId = adhesionId;
+
+    updateAdhesionLifecycleUI(adhesion);
 
     document.getElementById("adhesion-detail-name").textContent = [
       adhesion.Prenom,
@@ -4432,6 +4490,91 @@
     panel.classList.add("open");
 
     panel.setAttribute("aria-hidden", "false");
+  }
+
+  /**
+   * Annule ou réactive l'adhésion
+   * affichée dans le sidepanel.
+   */
+  function toggleCurrentAdhesionStatus() {
+    if (!currentAdhesionId) {
+      return;
+    }
+
+    const adhesion = adhesionsData.find(
+      (item) => item.Adhesion_id === currentAdhesionId,
+    );
+
+    if (!adhesion) {
+      return;
+    }
+
+    const cancelled = isCancelledAdhesion(adhesion);
+
+    const targetStatus = cancelled ? "ACTIVE" : "ANNULEE";
+
+    const identity =
+      [adhesion.Prenom, adhesion.Nom].filter(Boolean).join(" ") ||
+      "cette adhésion";
+
+    const confirmation = cancelled
+      ? "Réactiver l'adhésion de " + identity + " ?"
+      : "Annuler l'adhésion de " +
+        identity +
+        " ?\n\n" +
+        "Elle sera conservée mais masquée de la liste active.";
+
+    if (!window.confirm(confirmation)) {
+      return;
+    }
+
+    const button = document.getElementById("adhesion-detail-status-action");
+
+    const saving = document.getElementById("adhesion-detail-saving");
+
+    const error = document.getElementById("adhesion-detail-error");
+
+    if (button) {
+      button.disabled = true;
+    }
+
+    if (saving) {
+      saving.textContent =
+        targetStatus === "ANNULEE"
+          ? "Annulation en cours..."
+          : "Réactivation en cours...";
+
+      saving.style.display = "block";
+    }
+
+    if (error) {
+      error.style.display = "none";
+
+      error.textContent = "";
+    }
+
+    google.script.run
+      .withSuccessHandler(() => {
+        closeAdhesionDetail();
+
+        refreshAdhesions();
+      })
+      .withFailureHandler((serverError) => {
+        if (button) {
+          button.disabled = false;
+        }
+
+        if (saving) {
+          saving.style.display = "none";
+        }
+
+        if (error) {
+          error.textContent = serverError.message || serverError;
+
+          error.style.display = "block";
+        }
+      })
+      .setAdhesionStatus(currentAdhesionId, targetStatus);
   }
 
   /**

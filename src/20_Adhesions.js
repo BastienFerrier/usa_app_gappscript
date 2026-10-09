@@ -981,6 +981,8 @@ function syncAssoConnectToAdhesions(saisonId) {
    * Lecture des trois tables.
    */
 
+  ensureAdhesionStatusColumn(adhesionsSheet);
+
   const importData = readSheetAsObjects(importSheet);
 
   const contactsData = readSheetAsObjects(contactsSheet);
@@ -1226,6 +1228,65 @@ function syncAssoConnectToAdhesions(saisonId) {
     adhesionsCreated: adhesionsCreated,
 
     adhesionsUpdated: adhesionsUpdated,
+  };
+}
+
+/**
+ * Garantit la présence de la colonne
+ * Statut_adhesion et initialise les
+ * anciennes lignes sans statut.
+ *
+ * La migration est idempotente :
+ * une valeur ANNULEE n'est jamais
+ * remplacée par ACTIVE.
+ */
+function ensureAdhesionStatusColumn(sheet) {
+  const lastColumn = sheet.getLastColumn();
+
+  if (lastColumn === 0) {
+    throw new Error("L'onglet Adhesions ne contient aucun en-tête.");
+  }
+
+  const headers = sheet
+    .getRange(1, 1, 1, lastColumn)
+    .getValues()[0]
+    .map((value) => String(value).trim());
+
+  let statusColumn = headers.indexOf("Statut_adhesion");
+
+  if (statusColumn === -1) {
+    statusColumn = headers.length;
+
+    sheet.getRange(1, statusColumn + 1).setValue("Statut_adhesion");
+  }
+
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow > 1) {
+    const range = sheet.getRange(2, statusColumn + 1, lastRow - 1, 1);
+
+    const values = range.getValues();
+
+    let changed = false;
+
+    values.forEach((row) => {
+      if (!String(row[0] || "").trim()) {
+        row[0] = "ACTIVE";
+
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      range.setValues(values);
+    }
+  }
+
+  SpreadsheetApp.flush();
+
+  return {
+    statusColumn: statusColumn,
+    header: "Statut_adhesion",
   };
 }
 
@@ -1579,6 +1640,8 @@ function initializeManualAdhesionFields(adhesion) {
 
   adhesion.SportEasy_equipe = "";
 
+  adhesion.Statut_adhesion = "ACTIVE";
+
   adhesion.Licence_statut = "";
 
   adhesion.Commentaire = "";
@@ -1711,7 +1774,9 @@ function testSyncAssoConnectToAdhesions() {
  * Retourne les adhésions d'une saison
  * avec les informations du contact.
  *
- * Aucune donnée n'est modifiée.
+ * Les données métier ne sont pas modifiées.
+ * La colonne de cycle de vie peut être
+ * initialisée automatiquement si nécessaire.
  */
 function getAdhesions(saisonId) {
   requireRole("ADMIN", "BUREAU");
@@ -1733,6 +1798,8 @@ function getAdhesions(saisonId) {
   if (!adhesionsSheet) {
     throw new Error("Onglet Adhesions introuvable.");
   }
+
+  ensureAdhesionStatusColumn(adhesionsSheet);
 
   const contactsData = readSheetAsObjects(contactsSheet);
 
@@ -1777,6 +1844,9 @@ function getAdhesions(saisonId) {
         Contact_id: contactId,
 
         Saison_id: adhesion.Saison_id || "",
+
+        Statut_adhesion:
+          String(adhesion.Statut_adhesion || "").trim() || "ACTIVE",
 
         /*
          * Identité
@@ -2168,6 +2238,8 @@ function saveAdhesionFollowUp(adhesionId, data) {
       throw new Error("L'onglet Adhesions est introuvable.");
     }
 
+    ensureAdhesionStatusColumn(sheet);
+
     const values = sheet.getDataRange().getValues();
 
     if (values.length < 2) {
@@ -2330,6 +2402,131 @@ function saveAdhesionFollowUp(adhesionId, data) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Modifie le cycle de vie d'une adhésion.
+ *
+ * L'adhésion reste dans la feuille et
+ * l'opération est historisée.
+ */
+function setAdhesionStatus(adhesionId, status) {
+  requireRole("ADMIN", "BUREAU");
+
+  const normalizedAdhesionId = String(adhesionId || "").trim();
+
+  if (!normalizedAdhesionId) {
+    throw new Error("Identifiant d'adhésion manquant.");
+  }
+
+  const normalizedStatus = validateAdhesionStatus(status);
+
+  const lock = LockService.getScriptLock();
+
+  if (!lock.tryLock(10000)) {
+    throw new Error("Une autre modification est en cours. Merci de réessayer.");
+  }
+
+  try {
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEETS.ADHESIONS);
+
+    const sheet = spreadsheet.getSheetByName("Adhesions");
+
+    if (!sheet) {
+      throw new Error("L'onglet Adhesions est introuvable.");
+    }
+
+    ensureAdhesionStatusColumn(sheet);
+
+    const values = sheet.getDataRange().getValues();
+
+    if (values.length < 2) {
+      throw new Error("Aucune adhésion disponible.");
+    }
+
+    const headers = values[0].map((header) => String(header).trim());
+
+    const adhesionIdIndex = headers.indexOf("Adhesion_id");
+
+    const statusIndex = headers.indexOf("Statut_adhesion");
+
+    if (adhesionIdIndex === -1 || statusIndex === -1) {
+      throw new Error("Colonnes d'adhésion obligatoires introuvables.");
+    }
+
+    let rowIndex = -1;
+
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][adhesionIdIndex]).trim() === normalizedAdhesionId) {
+        rowIndex = i;
+
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      throw new Error("Adhésion introuvable : " + normalizedAdhesionId);
+    }
+
+    const oldStatus =
+      String(values[rowIndex][statusIndex] || "").trim() || "ACTIVE";
+
+    if (oldStatus === normalizedStatus) {
+      return {
+        success: true,
+        changed: false,
+        adhesionId: normalizedAdhesionId,
+        status: normalizedStatus,
+      };
+    }
+
+    sheet.getRange(rowIndex + 1, statusIndex + 1).setValue(normalizedStatus);
+
+    const dateMajIndex = headers.indexOf("Date_maj");
+
+    const now = new Date();
+
+    if (dateMajIndex !== -1) {
+      sheet.getRange(rowIndex + 1, dateMajIndex + 1).setValue(now);
+    }
+
+    writeAdhesionHistory(
+      spreadsheet,
+      normalizedAdhesionId,
+      [
+        {
+          field: "Statut_adhesion",
+          oldValue: oldStatus,
+          newValue: normalizedStatus,
+        },
+      ],
+      now,
+      normalizedStatus === "ANNULEE" ? "ANNULATION" : "REACTIVATION",
+    );
+
+    SpreadsheetApp.flush();
+
+    return {
+      success: true,
+      changed: true,
+      adhesionId: normalizedAdhesionId,
+      status: normalizedStatus,
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function validateAdhesionStatus(value) {
+  const normalized = String(value || "")
+    .trim()
+    .toUpperCase();
+
+  if (!["ACTIVE", "ANNULEE"].includes(normalized)) {
+    throw new Error("Statut d'adhésion invalide.");
+  }
+
+  return normalized;
 }
 
 /* =========================
@@ -2526,7 +2723,13 @@ function validateManualPaymentAmount(value) {
  * dans l'onglet Historique
  * du fichier Adhésions.
  */
-function writeAdhesionHistory(spreadsheet, adhesionId, changes, date) {
+function writeAdhesionHistory(
+  spreadsheet,
+  adhesionId,
+  changes,
+  date,
+  action = "MODIFICATION",
+) {
   const historySheet = spreadsheet.getSheetByName("Historique");
 
   if (!historySheet) {
@@ -2548,7 +2751,7 @@ function writeAdhesionHistory(spreadsheet, adhesionId, changes, date) {
 
     adhesionId,
 
-    "MODIFICATION",
+    action,
 
     change.field,
 
@@ -4149,6 +4352,8 @@ function syncFbiToAdhesions(saisonId) {
      * LECTURE
      * =========================
      */
+
+    ensureAdhesionStatusColumn(adhesionsSheet);
 
     const contactsData = readSheetAsObjects(contactsSheet);
 

@@ -91,6 +91,16 @@
         <option value="">Toutes les catégories</option>
       </select>
 
+      <label class="adhesion-cancelled-toggle">
+        <input
+          id="adhesions-cancelled-toggle"
+          type="checkbox"
+          onchange="filterAdhesions()"
+        />
+
+        <span>Adhésions annulées</span>
+      </label>
+
       <select id="adhesions-status-filter" onchange="filterAdhesions()">
         <option value="">Tous les suivis</option>
 
@@ -472,6 +482,11 @@
         </div>
 
         <div id="adhesion-detail-id" class="adhesion-detail-subtitle"></div>
+
+        <span
+          id="adhesion-detail-lifecycle"
+          class="adhesion-lifecycle-badge"
+        ></span>
       </div>
 
       <button
@@ -779,6 +794,15 @@
       >
         Enregistrement...
       </div>
+
+      <button
+        id="adhesion-detail-status-action"
+        type="button"
+        class="adhesion-status-action"
+        onclick="toggleCurrentAdhesionStatus()"
+      >
+        Annuler l'adhésion
+      </button>
 
       <button
         type="button"

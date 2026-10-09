@@ -2016,6 +2016,104 @@
     outline: none;
   }
 
+  .adhesion-cancelled-toggle {
+    min-height: 38px;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    padding: 8px 11px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    background: white;
+
+    color: #555;
+
+    font-size: 13px;
+
+    cursor: pointer;
+  }
+
+  .adhesion-cancelled-toggle input {
+    accent-color: #e0081a;
+  }
+
+  .adhesion-cancelled-toggle:has(input:checked) {
+    border-color: #e0081a;
+
+    background: #fff4f3;
+
+    color: #a51d15;
+  }
+
+  .adhesion-lifecycle-badge {
+    display: inline-block;
+
+    margin-top: 7px;
+
+    padding: 4px 9px;
+
+    border-radius: 999px;
+
+    background: #e9f6ed;
+
+    color: #247a3d;
+
+    font-size: 11px;
+
+    font-weight: bold;
+  }
+
+  .adhesion-lifecycle-badge.cancelled {
+    background: #fff0ef;
+
+    color: #b42318;
+  }
+
+  .adhesion-status-action {
+    margin-right: auto;
+
+    padding: 9px 14px;
+
+    border: 1px solid #e0081a;
+
+    border-radius: 6px;
+
+    background: white;
+
+    color: #c40012;
+
+    font: inherit;
+
+    cursor: pointer;
+  }
+
+  .adhesion-status-action:hover {
+    background: #fff4f3;
+  }
+
+  .adhesion-status-action.reactivate {
+    border-color: #2e9d59;
+
+    color: #247a3d;
+  }
+
+  .adhesion-status-action.reactivate:hover {
+    background: #eefaf1;
+  }
+
+  .adhesions-table tbody tr.adhesion-row-cancelled {
+    background: #fff8f7;
+
+    opacity: 0.82;
+  }
+
   /* =========================
    RESUME ADHESIONS
    ========================= */

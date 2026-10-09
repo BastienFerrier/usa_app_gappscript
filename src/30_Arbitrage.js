@@ -102,6 +102,8 @@ function getArbitres(saisonId) {
     throw new Error("Feuille Arbitrage introuvable.");
   }
 
+  ensureAdhesionStatusColumn(adhesionsSheet);
+
   /*
    * =========================
    * LECTURE
@@ -172,6 +174,11 @@ function getArbitres(saisonId) {
      * Saison sélectionnée.
      */
     .filter((adhesion) => String(adhesion.Saison_id || "").trim() === saisonId)
+
+    .filter(
+      (adhesion) =>
+        String(adhesion.Statut_adhesion || "ACTIVE").trim() !== "ANNULEE",
+    )
 
     /*
      * Seuls les joueurs U13
