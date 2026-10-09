@@ -2450,7 +2450,110 @@
   }
 
   .arbitrage-header h1 {
-    margin: 0 0 5px;
+    margin: 0;
+  }
+
+  .arbitrage-title-row {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    margin-bottom: 5px;
+  }
+
+  .arbitrage-info-button {
+    width: 20px;
+    height: 20px;
+
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    border: 1px solid #c9c5c5;
+
+    border-radius: 50%;
+
+    background: white;
+
+    color: #6b625b;
+
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
+
+    cursor: pointer;
+  }
+
+  .arbitrage-info-button:hover,
+  .arbitrage-info-button[aria-expanded="true"] {
+    border-color: #e0081a;
+
+    background: #fff4f3;
+
+    color: #c40012;
+  }
+
+  .arbitrage-info-button:focus-visible {
+    outline: 2px solid rgba(224, 8, 26, 0.3);
+
+    outline-offset: 2px;
+  }
+
+  .arbitrage-level-help {
+    max-width: 680px;
+
+    margin: 0 0 12px;
+
+    padding: 14px 16px;
+
+    border: 1px solid #ead8d5;
+
+    border-radius: 8px;
+
+    background: #fffafa;
+
+    color: #4d4540;
+
+    font-size: 12px;
+
+    line-height: 1.45;
+  }
+
+  .arbitrage-level-help[hidden] {
+    display: none;
+  }
+
+  .arbitrage-level-help h2 {
+    margin: 0 0 10px;
+
+    color: #312921;
+
+    font-size: 13px;
+  }
+
+  .arbitrage-level-help dl {
+    display: grid;
+
+    grid-template-columns: 145px 1fr;
+
+    gap: 7px 14px;
+
+    margin: 0;
+  }
+
+  .arbitrage-level-help dt {
+    color: #312921;
+
+    font-weight: bold;
+  }
+
+  .arbitrage-level-help dd {
+    margin: 0;
   }
 
   .arbitrage-subtitle {

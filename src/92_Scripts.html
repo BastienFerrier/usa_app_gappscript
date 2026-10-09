@@ -1087,6 +1087,22 @@
     EXTERIEUR: "Extérieur",
   };
 
+  function toggleArbitrageLevelHelp() {
+    const button = document.getElementById("arbitrage-level-help-button");
+
+    const help = document.getElementById("arbitrage-level-help");
+
+    if (!button || !help) {
+      return;
+    }
+
+    const isOpen = !help.hidden;
+
+    help.hidden = isOpen;
+
+    button.setAttribute("aria-expanded", String(!isOpen));
+  }
+
   /**
    * Charge le référentiel arbitrage.
    */

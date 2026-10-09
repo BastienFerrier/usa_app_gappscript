@@ -5,7 +5,55 @@
 
   <div class="arbitrage-header">
     <div>
-      <h1>Arbitrage</h1>
+      <div class="arbitrage-title-row">
+        <h1>Arbitrage</h1>
+
+        <button
+          id="arbitrage-level-help-button"
+          type="button"
+          class="arbitrage-info-button"
+          aria-expanded="false"
+          aria-controls="arbitrage-level-help"
+          aria-label="Afficher les définitions des niveaux d'arbitrage"
+          onclick="toggleArbitrageLevelHelp()"
+        >
+          <span aria-hidden="true">i</span>
+        </button>
+      </div>
+
+      <div
+        id="arbitrage-level-help"
+        class="arbitrage-level-help"
+        role="region"
+        aria-labelledby="arbitrage-level-help-title"
+        hidden
+      >
+        <h2 id="arbitrage-level-help-title">Niveaux d'arbitrage</h2>
+
+        <dl>
+          <dt>Débutant</dt>
+          <dd>Peut arbitrer des équipes U7/U9.</dd>
+
+          <dt>En apprentissage</dt>
+          <dd>Sait un peu siffler et peut arbitrer des équipes U7/U9/U11.</dd>
+
+          <dt>Autonome</dt>
+          <dd>
+            À l'aise avec le sifflet, a déjà arbitré U11/U13, maîtrise les
+            situations simples et l'application des règles. Les décisions sont
+            encore plus difficiles dans les situations peu tranchées.
+          </dd>
+
+          <dt>Confirmé</dt>
+          <dd>
+            A déjà arbitré U11/U13/U15/U18, est à l'aise avec le sifflet et
+            maîtrise les prises de décision complexes.
+          </dd>
+
+          <dt>Référent</dt>
+          <dd>Officiel, diplômé départemental.</dd>
+        </dl>
+      </div>
 
       <div class="arbitrage-subtitle">
         Gestion du vivier des arbitres du club et évaluation de leur niveau.
