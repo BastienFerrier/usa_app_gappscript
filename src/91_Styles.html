@@ -2017,39 +2017,101 @@
   }
 
   .adhesion-cancelled-toggle {
-    min-height: 38px;
+    height: 30px;
 
     display: inline-flex;
 
     align-items: center;
 
-    gap: 8px;
+    gap: 7px;
 
-    padding: 8px 11px;
+    align-self: center;
 
-    border: 1px solid #ccc;
+    padding: 0 4px;
 
-    border-radius: 6px;
+    border: 0;
 
-    background: white;
+    border-radius: 999px;
 
-    color: #555;
+    background: transparent;
 
-    font-size: 13px;
+    color: #666;
+
+    font-size: 12px;
 
     cursor: pointer;
+
+    white-space: nowrap;
   }
 
   .adhesion-cancelled-toggle input {
-    accent-color: #e0081a;
+    position: absolute;
+
+    width: 1px;
+    height: 1px;
+
+    overflow: hidden;
+
+    clip: rect(0 0 0 0);
+
+    clip-path: inset(50%);
+
+    white-space: nowrap;
   }
 
-  .adhesion-cancelled-toggle:has(input:checked) {
-    border-color: #e0081a;
+  .adhesion-cancelled-toggle-track {
+    position: relative;
 
-    background: #fff4f3;
+    width: 32px;
+    height: 18px;
 
+    flex: 0 0 auto;
+
+    border-radius: 999px;
+
+    background: #c7cbd1;
+
+    transition: background 0.15s ease;
+  }
+
+  .adhesion-cancelled-toggle-track::after {
+    position: absolute;
+
+    top: 2px;
+    left: 2px;
+
+    width: 14px;
+    height: 14px;
+
+    border-radius: 50%;
+
+    background: white;
+
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+
+    content: "";
+
+    transition: transform 0.15s ease;
+  }
+
+  .adhesion-cancelled-toggle input:checked + .adhesion-cancelled-toggle-track {
+    background: #e0081a;
+  }
+
+  .adhesion-cancelled-toggle
+    input:checked
+    + .adhesion-cancelled-toggle-track::after {
+    transform: translateX(14px);
+  }
+
+  .adhesion-cancelled-toggle:focus-within {
     color: #a51d15;
+  }
+
+  .adhesion-cancelled-toggle:focus-within .adhesion-cancelled-toggle-track {
+    outline: 2px solid rgba(224, 8, 26, 0.2);
+
+    outline-offset: 2px;
   }
 
   .adhesion-lifecycle-badge {

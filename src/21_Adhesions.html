@@ -96,9 +96,12 @@
           id="adhesions-cancelled-toggle"
           type="checkbox"
           onchange="filterAdhesions()"
+          aria-label="Afficher les adhésions annulées"
         />
 
-        <span>Adhésions annulées</span>
+        <span class="adhesion-cancelled-toggle-track" aria-hidden="true"></span>
+
+        <span class="adhesion-cancelled-toggle-label">Annulées</span>
       </label>
 
       <select id="adhesions-status-filter" onchange="filterAdhesions()">
