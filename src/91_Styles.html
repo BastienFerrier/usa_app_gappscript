@@ -3414,15 +3414,14 @@
    ========================= */
 
   .matchs-list-card {
-    padding: 0;
+    padding: 10;
 
     overflow: hidden;
 
     border: 1px solid #ddd;
 
     border-radius: 8px;
-
-    background: white;
+    background: #f6f6f6;
   }
 
   /* =========================
@@ -3534,7 +3533,7 @@
 
   .matchs-table-container {
     width: 100%;
-
+    padding: 20px;
     overflow-x: auto;
   }
 
@@ -3592,9 +3591,280 @@
     background: #fafafa;
   }
 
-  /* =========================
-   MATCHS - BADGES
-   ========================= */
+  .matchs-date-groups {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 24px;
+  }
+
+  .matchs-date-group {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 8px;
+  }
+
+  .matchs-date-title {
+    margin: 0;
+
+    padding: 0 2px 5px;
+
+    border-bottom: 2px solid #e0081a;
+
+    color: #312921;
+
+    font-size: 16px;
+  }
+
+  .matchs-date-matches {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 10px;
+  }
+
+  .matchs-card {
+    overflow: hidden;
+
+    border: 1px solid #e4e4e4;
+
+    border-radius: 8px;
+
+    background: white;
+  }
+
+  .matchs-card-main {
+    width: 100%;
+
+    display: grid;
+
+    grid-template-columns:
+      100px
+      minmax(220px, 1fr)
+      minmax(130px, 180px)
+      minmax(120px, max-content);
+
+    align-items: center;
+
+    gap: 14px;
+
+    padding: 13px 16px;
+
+    border: 0;
+
+    border-bottom: 1px solid #eee;
+
+    background: white;
+
+    color: #333;
+
+    font: inherit;
+
+    text-align: left;
+
+    cursor: pointer;
+  }
+
+  .matchs-card-main:hover {
+    background: #fafafa;
+  }
+
+  .matchs-card-category {
+    justify-self: start;
+  }
+
+  .matchs-card-teams {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    min-width: 0;
+
+    font-size: 14px;
+  }
+
+  .matchs-card-teams strong {
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+  }
+
+  .matchs-card-vs {
+    color: #999;
+
+    font-size: 11px;
+  }
+
+  .matchs-card-location {
+    display: flex;
+
+    flex-direction: column;
+
+    color: #555;
+
+    font-size: 12px;
+  }
+
+  .matchs-card-location small {
+    margin-top: 3px;
+
+    color: #999;
+
+    font-size: 10px;
+  }
+
+  .matchs-card-score {
+    min-width: 120px;
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: flex-end;
+
+    gap: 7px;
+
+    color: #312921;
+
+    font-size: 16px;
+
+    font-weight: bold;
+
+    text-align: right;
+
+    white-space: nowrap;
+  }
+
+  .matchs-result-icon {
+    width: 20px;
+    height: 20px;
+
+    display: inline-flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    font-size: 13px;
+    font-weight: bold;
+
+    line-height: 1;
+  }
+
+  .matchs-result-win {
+    background: #e7f6ed;
+
+    color: #176b3a;
+  }
+
+  .matchs-result-loss {
+    background: #fff1f2;
+
+    color: #b4232f;
+  }
+
+  .matchs-result-draw {
+    background: #f3eee9;
+
+    color: #6f4c3b;
+  }
+
+  .matchs-assignment-row {
+    display: grid;
+
+    grid-template-columns: 150px minmax(0, 1fr);
+
+    gap: 12px;
+
+    align-items: center;
+
+    padding: 8px 16px;
+
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .matchs-assignment-row:last-child {
+    border-bottom: 0;
+  }
+
+  .matchs-assignment-label {
+    color: #777;
+
+    font-size: 11px;
+
+    font-weight: bold;
+
+    text-transform: uppercase;
+
+    letter-spacing: 0.35px;
+  }
+
+  .matchs-assignment-people {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 6px;
+
+    align-items: center;
+  }
+
+  .matchs-person-chip {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    padding: 4px 8px;
+
+    border-radius: 5px;
+
+    background: #f5f6f8;
+
+    color: #333;
+
+    font-size: 12px;
+  }
+
+  .matchs-person-name {
+    font-weight: bold;
+  }
+
+  .matchs-person-meta,
+  .matchs-person-licence {
+    color: #777;
+
+    font-size: 10px;
+  }
+
+  .matchs-person-licence {
+    padding-left: 5px;
+
+    border-left: 1px solid #d5d5d5;
+  }
+
+  .matchs-responsable-salle {
+    color: #333;
+
+    font-size: 12px;
+  }
+
+  .matchs-assignment-empty {
+    color: #aaa;
+
+    font-size: 12px;
+    font-style: italic;
+  }
 
   .matchs-badge {
     display: inline-flex;
@@ -3892,6 +4162,16 @@
     margin-top: 6px;
   }
 
+  .matchs-affectation-name {
+    font-weight: bold;
+  }
+
+  .matchs-affectation-meta {
+    color: #777;
+
+    font-size: 11px;
+  }
+
   .matchs-affectation-list .matchs-affectation-remove {
     padding: 2px 8px;
 
@@ -4093,6 +4373,58 @@
       width: 100%;
 
       min-width: 0;
+    }
+
+    .matchs-card-main {
+      grid-template-columns: minmax(0, 1fr) auto;
+
+      gap: 8px 12px;
+
+      padding: 12px;
+    }
+
+    .matchs-card-teams {
+      grid-column: 1 / -1;
+      grid-row: 1;
+    }
+
+    .matchs-card-category {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    .matchs-card-location {
+      grid-column: 1;
+      grid-row: 3;
+    }
+
+    .matchs-card-score {
+      grid-column: 2;
+      grid-row: 2 / 4;
+    }
+
+    .matchs-assignment-row {
+      grid-template-columns: 1fr;
+
+      gap: 5px;
+
+      padding: 8px 12px;
+    }
+
+    .matchs-assignment-people {
+      gap: 5px;
+    }
+
+    .matchs-person-chip {
+      max-width: 100%;
+    }
+
+    .matchs-person-name {
+      overflow: hidden;
+
+      text-overflow: ellipsis;
+
+      white-space: nowrap;
     }
 
     .matchs-modal-overlay {

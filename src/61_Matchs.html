@@ -94,25 +94,7 @@
       class="matchs-table-container"
       style="display: none"
     >
-      <table class="matchs-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-
-            <th>Catégorie</th>
-
-            <th>Équipes</th>
-
-            <th>Lieu</th>
-
-            <th>Score</th>
-
-            <th>Affectations</th>
-          </tr>
-        </thead>
-
-        <tbody id="matchs-table-body"></tbody>
-      </table>
+      <div id="matchs-table-body" class="matchs-date-groups"></div>
     </div>
 
     <!-- VIDE -->
@@ -210,9 +192,7 @@
 
         <div class="matchs-modal-grid">
           <div class="matchs-modal-field">
-            <label for="matchs-detail-domicile">
-              Domicile / Extérieur
-            </label>
+            <label for="matchs-detail-domicile"> Domicile / Extérieur </label>
 
             <select id="matchs-detail-domicile">
               <option value="">—</option>
@@ -238,17 +218,40 @@
           </div>
         </div>
 
-        <!-- SCORE + RESPONSABLE SALLE -->
+        <!-- SCORES + CODE E-MARQUE -->
 
         <div class="matchs-modal-grid">
           <div class="matchs-modal-field">
-            <label for="matchs-detail-score"> Score </label>
+            <label for="matchs-detail-score1"> Score équipe 1 </label>
 
             <input
-              id="matchs-detail-score"
+              id="matchs-detail-score1"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="matchs-modal-field">
+            <label for="matchs-detail-score2"> Score équipe 2 </label>
+
+            <input
+              id="matchs-detail-score2"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+
+        <div class="matchs-modal-grid">
+          <div class="matchs-modal-field">
+            <label for="matchs-detail-code-emarque"> Code e-Marque </label>
+
+            <input
+              id="matchs-detail-code-emarque"
               type="text"
               autocomplete="off"
-              placeholder="62-58"
             />
           </div>
 
@@ -304,10 +307,7 @@
         <div class="matchs-modal-section">
           <h3>OTM</h3>
 
-          <ul
-            id="matchs-detail-otm-list"
-            class="matchs-affectation-list"
-          ></ul>
+          <ul id="matchs-detail-otm-list" class="matchs-affectation-list"></ul>
 
           <div
             id="matchs-detail-otm-empty"

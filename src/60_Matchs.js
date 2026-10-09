@@ -32,12 +32,16 @@ const MATCHS_SHEET_HEADERS = [
   "Match_id",
   "Saison_id",
   "Date",
+  "Heure",
   "Equipe1",
   "Equipe2",
   "Domicile_exterieur",
   "Categorie",
   "Score",
+  "Score1",
+  "Score2",
   "Lieu",
+  "Code_eMarque",
   "Responsable_salle",
   "Date_maj",
 ];
@@ -81,6 +85,8 @@ function ensureMatchsSheets() {
     SHEETS.AFFECTATIONS_MATCHS,
     AFFECTATIONS_MATCHS_SHEET_HEADERS,
   );
+
+  ensureMatchsColumns(sportSpreadsheet.getSheetByName(SHEETS.MATCHS));
 
   return {
     success: true,
@@ -143,6 +149,121 @@ function ensureSheetWithHeaders(spreadsheet, name, headers) {
  * Exécutable manuellement depuis l'éditeur Apps Script.
  */
 
+function ensureMatchsColumns(sheet) {
+  const lastColumn = sheet.getLastColumn();
+
+  if (lastColumn === 0) {
+    throw new Error("L'onglet Matchs ne contient aucun en-tête.");
+  }
+
+  const headers = sheet
+    .getRange(1, 1, 1, lastColumn)
+    .getValues()[0]
+    .map((value) => String(value).trim());
+
+  const requiredHeaders = ["Heure", "Score1", "Score2", "Code_eMarque"];
+
+  const missingHeaders = requiredHeaders.filter(
+    (header) => !headers.includes(header),
+  );
+
+  if (missingHeaders.length > 0) {
+    sheet
+      .getRange(1, lastColumn + 1, 1, missingHeaders.length)
+      .setValues([missingHeaders]);
+
+    SpreadsheetApp.flush();
+  }
+
+  return {
+    headers: headers.concat(missingHeaders),
+    added: missingHeaders,
+  };
+}
+
+function parseMatchLegacyScore(value) {
+  const raw = String(value || "").trim();
+
+  if (!raw) {
+    return { score1: "", score2: "" };
+  }
+
+  const parts = raw.split(/\s*[-:]\s*/);
+
+  if (parts.length !== 2) {
+    return { score1: "", score2: "" };
+  }
+
+  return {
+    score1: parts[0].trim(),
+    score2: parts[1].trim(),
+  };
+}
+
+function getMatchScores(row) {
+  const legacy = parseMatchLegacyScore(row.Score);
+
+  return {
+    score1: String(row.Score1 || "").trim() || legacy.score1,
+    score2: String(row.Score2 || "").trim() || legacy.score2,
+  };
+}
+
+function getMatchRowValue(row, fieldName) {
+  const expected = String(fieldName || "")
+    .trim()
+    .toLowerCase();
+
+  const key = Object.keys(row || {}).find(
+    (header) => String(header).trim().toLowerCase() === expected,
+  );
+
+  return key ? row[key] : "";
+}
+
+function getMatchHourValue(row) {
+  return (
+    getMatchRowValue(row, "Heure") ||
+    getMatchRowValue(row, "Horaire") ||
+    getMatchRowValue(row, "Heure_match")
+  );
+}
+
+function formatMatchsTimeForClient(value) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (value >= 0 && value < 1) {
+      const totalMinutes = Math.round(value * 24 * 60) % (24 * 60);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+
+      return (
+        String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0")
+      );
+    }
+  }
+
+  if (typeof value === "string") {
+    const raw = value.trim();
+
+    const timeMatch = raw.match(/^(\d{1,2})\s*(?::|h|H|\.)\s*(\d{2})/);
+
+    if (timeMatch) {
+      return String(timeMatch[1]).padStart(2, "0") + ":" + timeMatch[2];
+    }
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return Utilities.formatDate(date, Session.getScriptTimeZone(), "HH:mm");
+}
 function testEnsureMatchsSheets() {
   const result = ensureMatchsSheets();
 
@@ -431,6 +552,137 @@ function listSaisons() {
  * plus la clé `comptes`.
  */
 
+function buildMatchsAssignmentDirectory(saisonId) {
+  const directory = {};
+
+  try {
+    const sportSpreadsheet = SpreadsheetApp.openById(SPREADSHEETS.SPORT);
+
+    const arbitrageSheet = sportSpreadsheet.getSheetByName("Arbitrage");
+
+    const contactsSpreadsheet = SpreadsheetApp.openById(SPREADSHEETS.ADHESIONS);
+
+    const contactsSheet = contactsSpreadsheet.getSheetByName("Contacts");
+
+    const adhesionsSheet = contactsSpreadsheet.getSheetByName("Adhesions");
+
+    const contactsById = {};
+
+    const adhesionsBySeasonContact = {};
+
+    if (contactsSheet) {
+      readSheetAsObjects(contactsSheet).rows.forEach((contact) => {
+        const contactId = String(contact.Contact_id || "").trim();
+
+        if (contactId) {
+          contactsById[contactId] = contact;
+        }
+      });
+    }
+
+    if (adhesionsSheet) {
+      readSheetAsObjects(adhesionsSheet)
+        .rows.filter(
+          (row) =>
+            String(row.Saison_id || "").trim() === String(saisonId).trim(),
+        )
+        .forEach((adhesion) => {
+          const contactId = String(adhesion.Contact_id || "").trim();
+
+          if (contactId) {
+            adhesionsBySeasonContact[
+              String(saisonId).trim() + "|" + contactId
+            ] = adhesion;
+          }
+        });
+    }
+
+    if (arbitrageSheet) {
+      readSheetAsObjects(arbitrageSheet)
+        .rows.filter(
+          (row) =>
+            String(row.Saison_id || "").trim() === String(saisonId).trim(),
+        )
+        .forEach((row) => {
+          const personneId = String(row.Arbitre_id || "").trim();
+
+          if (!personneId) {
+            return;
+          }
+
+          const contact = contactsById[String(row.Contact_id || "").trim()];
+
+          const adhesion =
+            adhesionsBySeasonContact[
+              String(saisonId).trim() +
+                "|" +
+                String(row.Contact_id || "").trim()
+            ];
+
+          directory[personneId] = {
+            Personne_id: personneId,
+            Prenom: contact?.Prenom || row.Prenom_externe || "",
+            Nom: contact?.Nom || row.Nom_externe || "",
+            Categorie: adhesion?.Categorie || row.Categorie || "",
+            Equipe: row.Equipe || row.Equipe_sportive || "",
+            Licence_ffbb: contact?.Licence_ffbb || row.Licence_ffbb || "",
+          };
+        });
+    }
+  } catch (error) {
+    console.warn("Impossible de résoudre le vivier arbitres : " + error);
+  }
+
+  try {
+    getOtmAffectables(saisonId).forEach((otm) => {
+      const personneId = String(otm.Personne_id || "").trim();
+
+      if (personneId) {
+        directory[personneId] = {
+          Personne_id: personneId,
+          Prenom: otm.Prenom || "",
+          Nom: otm.Nom || "",
+          Categorie: otm.Categorie || "",
+          Equipe: otm.Equipe || otm.Equipe_sportive || "",
+          Licence_ffbb: otm.Licence_ffbb || "",
+        };
+      }
+    });
+  } catch (error) {
+    // Le module OTM est optionnel.
+  }
+
+  return directory;
+}
+
+function buildMatchsAssignmentDetails(rows, directory) {
+  return rows.map((row) => {
+    const personneId = String(row.Personne_id || "").trim();
+
+    const role = String(row.Role || "")
+      .trim()
+      .toUpperCase();
+
+    const person = directory[personneId] || {};
+
+    const displayName = [person.Prenom, person.Nom]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(" ");
+
+    return {
+      Affectation_id: row.Affectation_id || "",
+      Match_id: row.Match_id || "",
+      Personne_id: personneId,
+      Role: role,
+      DisplayName: displayName || personneId,
+      Categorie: person.Categorie || "",
+      Equipe: person.Equipe || "",
+      Licence_ffbb: person.Licence_ffbb || "",
+    };
+  });
+}
+
 function listMatchs(saisonId) {
   requireAuthorizedUser();
 
@@ -449,6 +701,8 @@ function listMatchs(saisonId) {
     SHEETS.AFFECTATIONS_MATCHS,
   );
 
+  ensureMatchsColumns(matchsSheet);
+
   const matchsRows = readSheetAsObjects(matchsSheet).rows.filter(
     (row) => String(row.Saison_id || "").trim() === normalizedSaisonId,
   );
@@ -456,6 +710,16 @@ function listMatchs(saisonId) {
   const affectationsRows = readSheetAsObjects(affectationsSheet).rows.filter(
     (row) => String(row.Saison_id || "").trim() === normalizedSaisonId,
   );
+
+  const assignmentDirectory =
+    buildMatchsAssignmentDirectory(normalizedSaisonId);
+
+  const affectationDetails = buildMatchsAssignmentDetails(
+    affectationsRows,
+    assignmentDirectory,
+  );
+
+  const affectationsByMatchId = {};
 
   /*
    * Index des comptes d'affectations par Match_id.
@@ -467,12 +731,28 @@ function listMatchs(saisonId) {
    * sans `Match_id` sont ignorées).
    */
 
+  affectationDetails.forEach((affectation) => {
+    const matchId = String(affectation.Match_id || "").trim();
+
+    if (!matchId) {
+      return;
+    }
+
+    if (!affectationsByMatchId[matchId]) {
+      affectationsByMatchId[matchId] = [];
+    }
+
+    affectationsByMatchId[matchId].push(affectation);
+  });
+
   const comptesByMatchId = {};
 
   affectationsRows.forEach((row) => {
     const matchId = String(row.Match_id || "").trim();
 
-    const role = String(row.Role || "").trim();
+    const role = String(row.Role || "")
+      .trim()
+      .toUpperCase();
 
     if (!matchId) {
       return;
@@ -500,12 +780,16 @@ function listMatchs(saisonId) {
   const result = matchsRows.map((row) => {
     const matchId = String(row.Match_id || "").trim();
 
+    const scores = getMatchScores(row);
+
     return {
       Match_id: row.Match_id || "",
 
       Saison_id: row.Saison_id || "",
 
       Date: formatMatchsDateForClient(row.Date),
+
+      Heure: formatMatchsTimeForClient(getMatchHourValue(row) || row.Date),
 
       Equipe1: row.Equipe1 || "",
 
@@ -517,11 +801,19 @@ function listMatchs(saisonId) {
 
       Score: row.Score || "",
 
+      Score1: scores.score1,
+
+      Score2: scores.score2,
+
       Lieu: row.Lieu || "",
+
+      Code_eMarque: row.Code_eMarque || "",
 
       Responsable_salle: row.Responsable_salle || "",
 
       Date_maj: formatMatchsDateForClient(row.Date_maj),
+
+      affectations: affectationsByMatchId[matchId] || [],
 
       comptes: comptesByMatchId[matchId] || {
         ARBITRE: 0,
@@ -635,9 +927,13 @@ function getArbitresAffectables(saisonId) {
 
       Categorie: arbitre.Categorie || "",
 
+      Equipe: arbitre.Equipe || arbitre.Equipe_sportive || "",
+
       Niveau: arbitre.Niveau || "",
 
       Type: arbitre.Type || "",
+
+      Licence_ffbb: arbitre.Licence_ffbb || "",
 
       Saison_id: normalizedSaisonId,
     });
@@ -709,6 +1005,12 @@ function getOtmAffectables(saisonId) {
       Nom: otm.Nom || "",
 
       Prenom: otm.Prenom || "",
+
+      Categorie: otm.Categorie || "",
+
+      Equipe: otm.Equipe || otm.Equipe_sportive || "",
+
+      Licence_ffbb: otm.Licence_ffbb || "",
 
       Saison_id: normalizedSaisonId,
     }));
@@ -892,6 +1194,8 @@ function getMatchDetail(matchId) {
     SHEETS.AFFECTATIONS_MATCHS,
   );
 
+  ensureMatchsColumns(matchsSheet);
+
   const matchRow = readSheetAsObjects(matchsSheet).rows.find(
     (row) => String(row.Match_id || "").trim() === normalizedMatchId,
   );
@@ -940,7 +1244,13 @@ function getMatchDetail(matchId) {
         viviersByRole[roleKey] = [];
       }
     } catch (error) {
-      viviersByRole[roleKey] = [];
+      if (roleKey === "ARBITRE") {
+        viviersByRole[roleKey] = Object.values(
+          buildMatchsAssignmentDirectory(matchSaisonId),
+        );
+      } else {
+        viviersByRole[roleKey] = [];
+      }
     }
 
     return viviersByRole[roleKey];
@@ -966,6 +1276,29 @@ function getMatchDetail(matchId) {
     return displayName || personneId;
   }
 
+  function resolveLicence(personneId, roleKey) {
+    const vivier = loadVivierForRole(roleKey);
+
+    const personne = vivier.find(
+      (entry) => String(entry.Personne_id || "").trim() === personneId,
+    );
+
+    return personne ? String(personne.Licence_ffbb || "").trim() : "";
+  }
+
+  function resolvePersonMetadata(personneId, roleKey) {
+    const vivier = loadVivierForRole(roleKey);
+
+    const personne = vivier.find(
+      (entry) => String(entry.Personne_id || "").trim() === personneId,
+    );
+
+    return {
+      Categorie: personne?.Categorie || "",
+      Equipe: personne?.Equipe || personne?.Equipe_sportive || "",
+    };
+  }
+
   const affectations = affectationsRows.map((row) => {
     const personneId = String(row.Personne_id || "").trim();
 
@@ -981,8 +1314,16 @@ function getMatchDetail(matchId) {
       Role: roleKey,
 
       DisplayName: resolveDisplayName(personneId, roleKey),
+
+      Categorie: resolvePersonMetadata(personneId, roleKey).Categorie,
+
+      Equipe: resolvePersonMetadata(personneId, roleKey).Equipe,
+
+      Licence_ffbb: resolveLicence(personneId, roleKey),
     };
   });
+
+  const matchScores = getMatchScores(matchRow);
 
   return {
     match: {
@@ -991,6 +1332,10 @@ function getMatchDetail(matchId) {
       Saison_id: matchRow.Saison_id || "",
 
       Date: formatMatchsDateForClient(matchRow.Date),
+
+      Heure: formatMatchsTimeForClient(
+        getMatchHourValue(matchRow) || matchRow.Date,
+      ),
 
       Equipe1: matchRow.Equipe1 || "",
 
@@ -1002,7 +1347,13 @@ function getMatchDetail(matchId) {
 
       Score: matchRow.Score || "",
 
+      Score1: matchScores.score1,
+
+      Score2: matchScores.score2,
+
       Lieu: matchRow.Lieu || "",
+
+      Code_eMarque: matchRow.Code_eMarque || "",
 
       Responsable_salle: matchRow.Responsable_salle || "",
 
@@ -1140,6 +1491,17 @@ function updateMatch(payload) {
    * explicitement exclus).
    */
 
+  if (
+    Object.prototype.hasOwnProperty.call(payload, "Score1") ||
+    Object.prototype.hasOwnProperty.call(payload, "Score2")
+  ) {
+    const score1 = String(payload.Score1 || "").trim();
+
+    const score2 = String(payload.Score2 || "").trim();
+
+    payload.Score = score1 || score2 ? score1 + "-" + score2 : "";
+  }
+
   const WRITABLE_FIELDS = [
     "Date",
     "Equipe1",
@@ -1147,13 +1509,18 @@ function updateMatch(payload) {
     "Domicile_exterieur",
     "Categorie",
     "Score",
+    "Score1",
+    "Score2",
     "Lieu",
+    "Code_eMarque",
     "Responsable_salle",
   ];
 
   const sportSpreadsheet = SpreadsheetApp.openById(SPREADSHEETS.SPORT);
 
   const matchsSheet = getRequiredSheet(sportSpreadsheet, SHEETS.MATCHS);
+
+  ensureMatchsColumns(matchsSheet);
 
   const lock = LockService.getScriptLock();
 

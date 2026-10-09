@@ -5206,7 +5206,7 @@
 
               matchsData = [];
 
-              displayMatchs([]);
+              displayMatchsGrouped([]);
             }
           })
 
@@ -5374,7 +5374,7 @@
         return String(match.Lieu || "").trim() === lieu;
       });
 
-    displayMatchs(filtered);
+    displayMatchsGrouped(filtered);
   }
 
   /**
@@ -5399,18 +5399,368 @@
     filterMatchs();
   }
 
+  function formatMatchsGroupDate(iso) {
+    const value = String(iso || "").trim();
+
+    if (!value) {
+      return "Date non renseignée";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "Date non renseignée";
+    }
+
+    const label = new Intl.DateTimeFormat("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(date);
+
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  function renderMatchsPersonChips(affectations, emptyLabel) {
+    if (!affectations || affectations.length === 0) {
+      return `<span class="matchs-assignment-empty">${escapeHtml(
+        emptyLabel,
+      )}</span>`;
+    }
+
+    return affectations
+      .map((person) => {
+        const name =
+          String(person.DisplayName || "").trim() ||
+          [person.Prenom, person.Nom].filter(Boolean).join(" ") ||
+          person.Personne_id ||
+          "Personne inconnue";
+
+        const licence = String(
+          person.Licence_ffbb || person.Licence || "",
+        ).trim();
+
+        const metadata = String(person.Categorie || person.Equipe || "").trim();
+
+        return `
+          <span class="matchs-person-chip">
+            <span class="matchs-person-name">${escapeHtml(name)}</span>
+            ${
+              metadata
+                ? `<span class="matchs-person-meta">${escapeHtml(
+                    metadata,
+                  )}</span>`
+                : ""
+            }
+            ${
+              licence
+                ? `<span class="matchs-person-licence">${escapeHtml(
+                    licence,
+                  )}</span>`
+                : ""
+            }
+          </span>
+        `;
+      })
+      .join("");
+  }
+
+  function renderMatchsAssignmentRow(label, content) {
+    return `
+      <div class="matchs-assignment-row">
+        <div class="matchs-assignment-label">${escapeHtml(label)}</div>
+        <div class="matchs-assignment-people">${content}</div>
+      </div>
+    `;
+  }
+
+  function getMatchsDisplayHour(match) {
+    const directHour = String(match.Heure || "").trim();
+
+    if (directHour) {
+      return directHour;
+    }
+
+    const date = new Date(String(match.Date || ""));
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    const hours = date.getHours();
+
+    const minutes = date.getMinutes();
+
+    if (hours === 0 && minutes === 0) {
+      return "";
+    }
+
+    return (
+      String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0")
+    );
+  }
+
+  function getMatchResultStatus(equipe1, equipe2, score1, score2) {
+    const isOurTeam1 = String(equipe1 || "")
+      .toUpperCase()
+      .includes("UNION SPORTIVE AUSSONNAISE");
+
+    const isOurTeam2 = String(equipe2 || "")
+      .toUpperCase()
+      .includes("UNION SPORTIVE AUSSONNAISE");
+
+    if (isOurTeam1 === isOurTeam2) {
+      return "INCONNU";
+    }
+
+    const score1Value = String(score1 ?? "").trim();
+
+    const score2Value = String(score2 ?? "").trim();
+
+    if (!score1Value || !score2Value) {
+      return "INCONNU";
+    }
+
+    const firstScore = Number(score1Value);
+
+    const secondScore = Number(score2Value);
+
+    if (!Number.isFinite(firstScore) || !Number.isFinite(secondScore)) {
+      return "INCONNU";
+    }
+
+    const ourScore = isOurTeam1 ? firstScore : secondScore;
+
+    const opponentScore = isOurTeam1 ? secondScore : firstScore;
+
+    if (ourScore > opponentScore) {
+      return "VICTOIRE";
+    }
+
+    if (ourScore < opponentScore) {
+      return "DEFAITE";
+    }
+
+    return "EGALITE";
+  }
+
+  function renderMatchResultIcon(status) {
+    const labels = {
+      VICTOIRE: { icon: "✓", label: "Victoire", className: "win" },
+      DEFAITE: { icon: "✕", label: "Défaite", className: "loss" },
+      EGALITE: { icon: "=", label: "Égalité", className: "draw" },
+    };
+
+    const result = labels[status];
+
+    if (!result) {
+      return "";
+    }
+
+    return `<span class="matchs-result-icon matchs-result-${result.className}" title="${result.label}" aria-label="${result.label}">${result.icon}</span>`;
+  }
+
+  function displayMatchsGrouped(matchs) {
+    const loading = document.getElementById("matchs-loading");
+
+    const container = document.getElementById("matchs-table-container");
+
+    const empty = document.getElementById("matchs-empty");
+
+    const body = document.getElementById("matchs-table-body");
+
+    const summary = document.getElementById("matchs-summary");
+
+    if (loading) {
+      loading.style.display = "none";
+    }
+
+    if (!body) {
+      return;
+    }
+
+    if (summary) {
+      const total = matchsData.length;
+      const shown = matchs.length;
+
+      summary.textContent =
+        total === 0
+          ? "Aucun match pour la saison."
+          : shown === total
+            ? total + " match(s)"
+            : shown + " match(s) affiché(s) sur " + total;
+    }
+
+    body.innerHTML = "";
+
+    if (!matchs || matchs.length === 0) {
+      if (container) {
+        container.style.display = "none";
+      }
+
+      if (empty) {
+        empty.style.display = "block";
+      }
+
+      return;
+    }
+
+    if (empty) {
+      empty.style.display = "none";
+    }
+
+    if (container) {
+      container.style.display = "block";
+    }
+
+    const groups = new Map();
+
+    matchs.forEach((match) => {
+      const date = String(match.Date || "").trim();
+      const key = date ? date.substring(0, 10) : "NO_DATE";
+
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+
+      groups.get(key).push(match);
+    });
+
+    body.innerHTML = Array.from(groups.entries())
+      .map(([dateKey, group]) => {
+        const dateValue = dateKey === "NO_DATE" ? "" : group[0].Date;
+
+        const cards = group
+          .map((match) => {
+            const matchId = String(match.Match_id || "").trim();
+
+            const category = formatMatchsCategorie(match.Categorie);
+
+            const equipe1 = String(match.Equipe1 || "").trim() || "—";
+
+            const equipe2 = String(match.Equipe2 || "").trim() || "—";
+
+            const lieu = formatMatchsLieu(match.Lieu) || "—";
+
+            const score1 = String(match.Score1 || "").trim();
+
+            const score2 = String(match.Score2 || "").trim();
+
+            const legacyScore = String(match.Score || "").trim();
+
+            const score =
+              score1 || score2
+                ? (score1 || "—") + " - " + (score2 || "—")
+                : legacyScore || "—";
+
+            const resultStatus = getMatchResultStatus(
+              equipe1,
+              equipe2,
+              score1,
+              score2,
+            );
+
+            const resultIcon = renderMatchResultIcon(resultStatus);
+
+            const heure = getMatchsDisplayHour(match);
+
+            const codeEMarque = String(match.Code_eMarque || "").trim();
+
+            const domicile = String(match.Domicile_exterieur || "")
+              .trim()
+              .toUpperCase();
+
+            const affectations = Array.isArray(match.affectations)
+              ? match.affectations
+              : [];
+
+            const arbitres = affectations.filter(
+              (item) => item.Role === "ARBITRE",
+            );
+
+            const otms = affectations.filter((item) => item.Role === "OTM");
+
+            return `
+              <article class="matchs-card">
+                <button
+                  type="button"
+                  class="matchs-card-main"
+                  onclick="openMatchDetail('${escapeJs(matchId)}')"
+                >
+                  <span class="matchs-card-category matchs-badge matchs-badge-categorie">
+                    ${escapeHtml(category)}
+                  </span>
+
+                  <span class="matchs-card-teams">
+                    <strong>${escapeHtml(equipe1)}</strong>
+                    <span class="matchs-card-vs">vs</span>
+                    <strong>${escapeHtml(equipe2)}</strong>
+                  </span>
+
+                  <span class="matchs-card-location">
+                    ${escapeHtml(lieu)}
+                    ${
+                      heure ? `<small>Heure : ${escapeHtml(heure)}</small>` : ""
+                    }
+                    ${
+                      domicile
+                        ? `<small>${escapeHtml(
+                            domicile === "DOMICILE" ? "Domicile" : "Extérieur",
+                          )}</small>`
+                        : ""
+                    }
+                  </span>
+
+                  <span class="matchs-card-score">
+                    ${escapeHtml(score)}
+                    ${resultIcon}
+                  </span>
+                </button>
+
+                ${renderMatchsAssignmentRow(
+                  "Code e-Marque",
+                  `<span class="matchs-responsable-salle">${escapeHtml(
+                    codeEMarque || "—",
+                  )}</span>`,
+                )}
+
+                ${renderMatchsAssignmentRow(
+                  "Responsable de salle",
+                  `<span class="matchs-responsable-salle">${escapeHtml(
+                    String(match.Responsable_salle || "").trim() || "—",
+                  )}</span>`,
+                )}
+
+                ${renderMatchsAssignmentRow(
+                  "Arbitres",
+                  renderMatchsPersonChips(arbitres, "Aucun arbitre affecté"),
+                )}
+
+                ${renderMatchsAssignmentRow(
+                  "OTM",
+                  renderMatchsPersonChips(otms, "Aucun OTM affecté"),
+                )}
+              </article>
+            `;
+          })
+          .join("");
+
+        return `
+          <section class="matchs-date-group">
+            <h2 class="matchs-date-title">${escapeHtml(
+              formatMatchsGroupDate(dateValue),
+            )}</h2>
+            <div class="matchs-date-matches">${cards}</div>
+          </section>
+        `;
+      })
+      .join("");
+  }
+
   /**
-   * Affiche la liste des matchs
-   * filtrés dans le tableau de la
-   * page.
-   *
-   * - Met à jour le résumé (nombre
-   *   affiché vs total de la saison).
-   * - Bascule entre le tableau et
-   *   l'état vide (exigence 1.6).
-   * - Rend chaque ligne cliquable
-   *   pour ouvrir la fiche détail
-   *   (implémentation 12.4).
+   * Affiche les lignes dans l'ancien
+   * format conservé pour compatibilité.
    */
   function displayMatchs(matchs) {
     const loading = document.getElementById("matchs-loading");
@@ -6025,7 +6375,9 @@
       "matchs-detail-equipe2",
       "matchs-detail-domicile",
       "matchs-detail-lieu",
-      "matchs-detail-score",
+      "matchs-detail-score1",
+      "matchs-detail-score2",
+      "matchs-detail-code-emarque",
       "matchs-detail-responsable",
     ];
 
@@ -6120,7 +6472,11 @@
 
     setMatchsDetailValue("matchs-detail-lieu", match.Lieu);
 
-    setMatchsDetailValue("matchs-detail-score", match.Score);
+    setMatchsDetailValue("matchs-detail-score1", match.Score1);
+
+    setMatchsDetailValue("matchs-detail-score2", match.Score2);
+
+    setMatchsDetailValue("matchs-detail-code-emarque", match.Code_eMarque);
 
     setMatchsDetailValue("matchs-detail-responsable", match.Responsable_salle);
 
@@ -6291,6 +6647,20 @@
       nameSpan.textContent = displayName;
 
       li.appendChild(nameSpan);
+
+      const metadata = [aff.Categorie || aff.Equipe, aff.Licence_ffbb]
+        .filter(Boolean)
+        .join(" · ");
+
+      if (metadata) {
+        const metadataSpan = document.createElement("span");
+
+        metadataSpan.className = "matchs-affectation-meta";
+
+        metadataSpan.textContent = metadata;
+
+        li.appendChild(metadataSpan);
+      }
 
       /*
        * Bouton « Retirer » affiché
@@ -6488,7 +6858,9 @@
       "matchs-detail-equipe2",
       "matchs-detail-domicile",
       "matchs-detail-lieu",
-      "matchs-detail-score",
+      "matchs-detail-score1",
+      "matchs-detail-score2",
+      "matchs-detail-code-emarque",
       "matchs-detail-responsable",
     ];
 
@@ -6638,8 +7010,16 @@
         document.getElementById("matchs-detail-lieu")?.value || "",
       ).trim(),
 
-      Score: String(
-        document.getElementById("matchs-detail-score")?.value || "",
+      Score1: String(
+        document.getElementById("matchs-detail-score1")?.value || "",
+      ).trim(),
+
+      Score2: String(
+        document.getElementById("matchs-detail-score2")?.value || "",
+      ).trim(),
+
+      Code_eMarque: String(
+        document.getElementById("matchs-detail-code-emarque")?.value || "",
       ).trim(),
 
       Responsable_salle: String(
