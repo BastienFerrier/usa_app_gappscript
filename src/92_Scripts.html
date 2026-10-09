@@ -3364,17 +3364,66 @@
   }
 
   /**
-   * Remplit automatiquement
-   * le filtre des catégories.
+   * Retourne les catégories sélectionnées.
    */
-  function populateAdhesionCategories() {
-    const select = document.getElementById("adhesions-category-filter");
+  function getSelectedAdhesionCategories() {
+    return Array.from(
+      document.querySelectorAll(
+        '#adhesions-category-filter-options input[type="checkbox"]:checked',
+      ),
+    ).map((input) => input.value);
+  }
 
-    if (!select) {
+  function updateAdhesionCategoryFilterLabel() {
+    const label = document.getElementById("adhesions-category-filter-label");
+
+    if (!label) {
       return;
     }
 
-    const currentValue = select.value;
+    const selected = getSelectedAdhesionCategories();
+
+    if (selected.length === 0) {
+      label.textContent = "Toutes les catégories";
+    } else if (selected.length === 1) {
+      label.textContent = selected[0];
+    } else {
+      label.textContent = selected.length + " catégories sélectionnées";
+    }
+  }
+
+  function toggleAdhesionCategoryFilter() {
+    const button = document.getElementById("adhesions-category-filter-button");
+
+    const options = document.getElementById(
+      "adhesions-category-filter-options",
+    );
+
+    if (!button || !options) {
+      return;
+    }
+
+    const isOpen = !options.hidden;
+
+    options.hidden = isOpen;
+
+    button.setAttribute("aria-expanded", String(!isOpen));
+  }
+
+  /**
+   * Remplit automatiquement
+   * le filtre multi-catégories.
+   */
+  function populateAdhesionCategories() {
+    const options = document.getElementById(
+      "adhesions-category-filter-options",
+    );
+
+    if (!options) {
+      return;
+    }
+
+    const previousSelection = new Set(getSelectedAdhesionCategories());
 
     const categories = [
       ...new Set(
@@ -3388,23 +3437,39 @@
       }),
     );
 
-    select.innerHTML = `
-      <option value="">
-        Toutes les catégories
-      </option>
-    `;
+    options.innerHTML = "";
 
     categories.forEach((categorie) => {
-      const option = document.createElement("option");
+      const label = document.createElement("label");
 
-      option.value = categorie;
+      label.className = "adhesion-category-option";
 
-      option.textContent = categorie;
+      const checkbox = document.createElement("input");
 
-      select.appendChild(option);
+      checkbox.type = "checkbox";
+
+      checkbox.value = categorie;
+
+      checkbox.checked = previousSelection.has(categorie);
+
+      checkbox.addEventListener("change", () => {
+        updateAdhesionCategoryFilterLabel();
+
+        filterAdhesions();
+      });
+
+      const text = document.createElement("span");
+
+      text.textContent = categorie;
+
+      label.appendChild(checkbox);
+
+      label.appendChild(text);
+
+      options.appendChild(label);
     });
 
-    select.value = currentValue;
+    updateAdhesionCategoryFilterLabel();
   }
 
   /* =========================
@@ -3644,13 +3709,19 @@
    * une ligne du dashboard.
    */
   function filterAdhesionsFromDashboard(category) {
-    const select = document.getElementById("adhesions-category-filter");
+    const options = document.getElementById(
+      "adhesions-category-filter-options",
+    );
 
-    if (!select) {
+    if (!options) {
       return;
     }
 
-    select.value = category;
+    options.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      input.checked = category ? input.value === category : false;
+    });
+
+    updateAdhesionCategoryFilterLabel();
 
     filterAdhesions();
 
@@ -3659,22 +3730,20 @@
 
   /**
    * Met visuellement en évidence
-   * la catégorie actuellement
-   * sélectionnée.
+   * les catégories actuellement
+   * sélectionnées.
    */
   function updateAdhesionDashboardSelection() {
-    const select = document.getElementById("adhesions-category-filter");
-
-    if (!select) {
-      return;
-    }
-
-    const selectedCategory = select.value;
+    const selectedCategories = getSelectedAdhesionCategories();
 
     document.querySelectorAll(".adhesion-dashboard-row").forEach((row) => {
+      const category = row.dataset.category;
+
       row.classList.toggle(
         "selected",
-        row.dataset.category === selectedCategory,
+        category === ""
+          ? selectedCategories.length === 0
+          : selectedCategories.includes(category),
       );
     });
   }
@@ -3685,21 +3754,19 @@
   function filterAdhesions() {
     const searchInput = document.getElementById("adhesions-search");
 
-    const categoryInput = document.getElementById("adhesions-category-filter");
-
     const statusInput = document.getElementById("adhesions-status-filter");
 
     const cancelledInput = document.getElementById(
       "adhesions-cancelled-toggle",
     );
 
-    if (!searchInput || !categoryInput || !statusInput || !cancelledInput) {
+    if (!searchInput || !statusInput || !cancelledInput) {
       return;
     }
 
     const search = searchInput.value.trim().toLowerCase();
 
-    const category = categoryInput.value;
+    const categories = getSelectedAdhesionCategories();
 
     const status = statusInput.value;
 
@@ -3712,7 +3779,7 @@
         return false;
       }
 
-      if (category && adhesion.Categorie !== category) {
+      if (categories.length > 0 && !categories.includes(adhesion.Categorie)) {
         return false;
       }
 
@@ -3882,11 +3949,11 @@
   }
 
   function getAdhesionsExportFileName() {
-    const category = String(
-      document.getElementById("adhesions-category-filter")?.value || "",
-    ).trim();
+    const categories = getSelectedAdhesionCategories();
 
-    const suffix = category || "toutes-les-equipes";
+    const suffix = categories.length
+      ? categories.join("-")
+      : "toutes-les-equipes";
 
     return "suivi-adhesions-" + suffix.toLowerCase() + ".png";
   }
@@ -3918,11 +3985,11 @@
       return;
     }
 
-    const category = String(
-      document.getElementById("adhesions-category-filter")?.value || "",
-    ).trim();
+    const categories = getSelectedAdhesionCategories();
 
-    const label = category || "toutes les équipes";
+    const label = categories.length
+      ? categories.join(", ")
+      : "toutes les équipes";
 
     document.getElementById("adhesion-export-recipient").value = "";
 

@@ -1990,8 +1990,6 @@
 
   .adhesion-filters input,
   .adhesion-filters select {
-    min-height: 38px;
-
     padding: 8px 11px;
 
     border: 1px solid #ccc;
@@ -2005,8 +2003,106 @@
     font-size: 13px;
   }
 
-  .adhesion-filters input {
-    min-width: 240px;
+  .adhesion-category-filter {
+    position: relative;
+
+    min-width: 210px;
+  }
+
+  .adhesion-category-filter-button {
+    width: 100%;
+    min-height: 38px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 12px;
+
+    padding: 8px 11px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    background: white;
+
+    color: #333;
+
+    font: inherit;
+
+    font-size: 13px;
+
+    text-align: left;
+
+    cursor: pointer;
+  }
+
+  .adhesion-category-filter-button:hover,
+  .adhesion-category-filter-button[aria-expanded="true"] {
+    border-color: #e0081a;
+  }
+
+  .adhesion-category-filter-chevron {
+    color: #777;
+
+    font-size: 15px;
+  }
+
+  .adhesion-category-filter-options {
+    position: absolute;
+
+    top: calc(100% + 5px);
+    right: 0;
+    left: 0;
+
+    z-index: 30;
+
+    max-height: 260px;
+
+    overflow-y: auto;
+
+    padding: 6px;
+
+    border: 1px solid #ddd;
+
+    border-radius: 6px;
+
+    background: white;
+
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
+  }
+
+  .adhesion-category-option {
+    display: flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    padding: 8px 7px;
+
+    border-radius: 4px;
+
+    color: #333;
+
+    font-size: 13px;
+
+    cursor: pointer;
+  }
+
+  .adhesion-category-option:hover {
+    background: #f5f6f8;
+  }
+
+  .adhesion-category-option input {
+    accent-color: #e0081a;
+  }
+
+  .adhesion-category-filter-options[hidden] {
+    display: none;
   }
 
   .adhesion-filters input:focus,
@@ -3116,10 +3212,15 @@
     }
 
     .adhesion-filters input,
-    .adhesion-filters select {
+    .adhesion-filters select,
+    .adhesion-category-filter {
       width: 100%;
 
       min-width: 0;
+    }
+
+    .adhesion-category-filter-button {
+      width: 100%;
     }
 
     .adhesion-list-actions {

@@ -69,9 +69,29 @@
         oninput="filterAdhesions()"
       />
 
-      <select id="adhesions-category-filter" onchange="filterAdhesions()">
-        <option value="">Toutes les catégories</option>
-      </select>
+      <div class="adhesion-category-filter">
+        <button
+          id="adhesions-category-filter-button"
+          type="button"
+          class="adhesion-category-filter-button"
+          aria-expanded="false"
+          onclick="toggleAdhesionCategoryFilter()"
+        >
+          <span id="adhesions-category-filter-label"
+            >Toutes les catégories</span
+          >
+
+          <span class="adhesion-category-filter-chevron" aria-hidden="true">
+            ▾
+          </span>
+        </button>
+
+        <div
+          id="adhesions-category-filter-options"
+          class="adhesion-category-filter-options"
+          hidden
+        ></div>
+      </div>
 
       <label class="adhesion-cancelled-toggle">
         <input
