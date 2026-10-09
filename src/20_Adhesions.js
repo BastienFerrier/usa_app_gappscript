@@ -1441,11 +1441,15 @@ function normalizeBusinessKey(value) {
  * le rapprochement des contacts.
  */
 function normalizeDateBusinessKey(value) {
-  if (!value) {
+  if (value === null || value === undefined || value === "") {
     return "";
   }
 
   if (value instanceof Date) {
+    if (isNaN(value.getTime())) {
+      return "";
+    }
+
     return Utilities.formatDate(
       value,
       Session.getScriptTimeZone(),
@@ -1453,7 +1457,57 @@ function normalizeDateBusinessKey(value) {
     );
   }
 
-  return String(value).trim().substring(0, 10);
+  /*
+   * Selon la source et le format de la cellule,
+   * Apps Script peut recevoir une date sous forme
+   * de texte ou de numéro Excel. Les exports FBI
+   * utilisent notamment parfois dd/MM/yyyy alors
+   * que les dates Contacts sont au format ISO.
+   */
+  if (typeof value === "number" && isFinite(value)) {
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+    const date = new Date(excelEpoch.getTime() + value * 86400000);
+
+    if (!isNaN(date.getTime())) {
+      return Utilities.formatDate(date, "UTC", "yyyy-MM-dd");
+    }
+  }
+
+  const text = String(value).trim();
+
+  if (!text) {
+    return "";
+  }
+
+  let match = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+
+  if (match) {
+    return [match[1], match[2], match[3]]
+      .map((part, index) =>
+        index === 0 ? part : String(part).padStart(2, "0"),
+      )
+      .join("-");
+  }
+
+  match = text.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/);
+
+  if (match) {
+    return [match[3], match[2], match[1]]
+      .map((part) => String(part).padStart(2, "0"))
+      .join("-");
+  }
+
+  const parsed = new Date(text);
+
+  if (!isNaN(parsed.getTime())) {
+    return Utilities.formatDate(
+      parsed,
+      Session.getScriptTimeZone(),
+      "yyyy-MM-dd",
+    );
+  }
+
+  return "";
 }
 
 /**

@@ -2730,41 +2730,92 @@
    * Import terminé avec succès.
    */
   function handleAssoConnectImportSuccess(result) {
-    assoConnectImportRunning = false;
-
     const button = document.getElementById("assoconnect-import-button");
 
     const resultDiv = document.getElementById("assoconnect-import-result");
 
     if (button) {
-      button.disabled = false;
+      button.disabled = true;
 
-      button.textContent = "Importer";
+      button.textContent = "Synchronisation...";
     }
-
-    document
-      .querySelectorAll("#assoconnect-import-files select")
-      .forEach((select) => {
-        select.disabled = false;
-      });
 
     if (resultDiv) {
       resultDiv.style.display = "block";
 
-      resultDiv.innerHTML = `
-
-        <strong>
-          Import terminé.
-        </strong>
-
-        ${result.fichiers}
-        fichier(s) traité(s),
-
-        ${result.lignes}
-        ligne(s) importée(s).
-
-      `;
+      resultDiv.textContent =
+        "Import terminé. Synchronisation des adhésions...";
     }
+
+    google.script.run
+
+      .withSuccessHandler((syncResult) => {
+        assoConnectImportRunning = false;
+
+        if (button) {
+          button.disabled = false;
+
+          button.textContent = "Importer";
+        }
+
+        document
+          .querySelectorAll("#assoconnect-import-files select")
+          .forEach((select) => {
+            select.disabled = false;
+          });
+
+        if (resultDiv) {
+          resultDiv.style.display = "block";
+
+          resultDiv.innerHTML = `
+            <strong>
+              Import et synchronisation terminés.
+            </strong>
+
+            ${result.fichiers}
+            fichier(s) traité(s),
+
+            ${result.lignes}
+            ligne(s) importée(s).
+            <br>
+
+            ${syncResult.personnes || 0}
+            personne(s) synchronisée(s),
+
+            ${syncResult.adhesionsCreated || 0}
+            adhésion(s) créée(s),
+
+            ${syncResult.adhesionsUpdated || 0}
+            adhésion(s) mise(s) à jour.
+          `;
+        }
+
+        refreshAdhesions();
+      })
+
+      .withFailureHandler((error) => {
+        assoConnectImportRunning = false;
+
+        if (button) {
+          button.disabled = false;
+
+          button.textContent = "Importer";
+        }
+
+        document
+          .querySelectorAll("#assoconnect-import-files select")
+          .forEach((select) => {
+            select.disabled = false;
+          });
+
+        showAssoConnectImportError({
+          message:
+            "Import terminé, mais la synchronisation des adhésions a échoué : " +
+            (error.message || error),
+        });
+      })
+
+      .syncAssoConnectToAdhesions("2026-2027");
   }
 
   /**
