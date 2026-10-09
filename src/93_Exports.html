@@ -1,0 +1,451 @@
+<script>
+  /**
+   * =========================
+   * EXPORTS D'IMAGES
+   * =========================
+   *
+   * API générique utilisable par
+   * toutes les pages de l'application.
+   *
+   * Le rendu est construit avec des
+   * primitives SVG uniquement. Aucun
+   * foreignObject, HTML embarqué ou
+   * contenu externe n'est utilisé :
+   * le PNG reste exportable dans les
+   * iframes Google Apps Script.
+   *
+   * Exemple :
+   *
+   * USABExport.downloadElementAsImage("#mon-tableau", {
+   *   fileName: "mon-export.png",
+   * });
+   *
+   * USABExport.sendElementImageByEmail("#mon-tableau", {
+   *   recipient: "destinataire@example.com",
+   *   subject: "Mon tableau",
+   *   body: "Bonjour,",
+   *   fileName: "mon-export.png",
+   * });
+   */
+  window.USABExport = (function () {
+    const EXPORT_MAX_WIDTH = 10000;
+
+    const EXPORT_MAX_HEIGHT = 40000;
+
+    function resolveElement(target) {
+      if (typeof target === "string") {
+        return document.querySelector(target);
+      }
+
+      return target;
+    }
+
+    function escapeXml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&apos;");
+    }
+
+    function normalizeColor(value) {
+      const color = String(value || "").trim();
+
+      return !color || color === "transparent" || color === "rgba(0, 0, 0, 0)"
+        ? ""
+        : color;
+    }
+
+    function parsePixels(value) {
+      const parsed = Number.parseFloat(String(value || ""));
+
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function getNodeText(element) {
+      const tagName = element.tagName.toLowerCase();
+
+      if (tagName === "select") {
+        return element.options[element.selectedIndex]?.textContent || "";
+      }
+
+      if (tagName === "input" || tagName === "textarea") {
+        return element.value || "";
+      }
+
+      const childElements = Array.from(element.children);
+
+      if (childElements.length > 0 && tagName !== "button") {
+        return Array.from(element.childNodes)
+          .filter((node) => node.nodeType === Node.TEXT_NODE)
+          .map((node) => node.textContent || "")
+          .join(" ");
+      }
+
+      return element.textContent || "";
+    }
+
+    function hasRenderableText(element) {
+      const tagName = element.tagName.toLowerCase();
+
+      if (["select", "input", "textarea", "button"].includes(tagName)) {
+        return Boolean(getNodeText(element).trim());
+      }
+
+      const childElements = Array.from(element.children);
+
+      if (childElements.length === 0) {
+        return Boolean(getNodeText(element).trim());
+      }
+
+      return Array.from(element.childNodes).some(
+        (node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim(),
+      );
+    }
+
+    function renderText(element, rect, rootRect, style, parts) {
+      if (!hasRenderableText(element)) {
+        return;
+      }
+
+      const text = getNodeText(element).replace(/\s+/g, " ").trim();
+
+      if (!text) {
+        return;
+      }
+
+      const fontSize = parsePixels(style.fontSize) || 13;
+
+      const lineHeight = parsePixels(style.lineHeight) || fontSize * 1.2;
+
+      const paddingLeft = parsePixels(style.paddingLeft);
+
+      const paddingRight = parsePixels(style.paddingRight);
+
+      const paddingTop = parsePixels(style.paddingTop);
+
+      const textAlign = style.textAlign || "left";
+
+      let x = rect.left - rootRect.left + paddingLeft;
+
+      let anchor = "start";
+
+      if (textAlign === "center") {
+        x = rect.left - rootRect.left + rect.width / 2;
+
+        anchor = "middle";
+      } else if (textAlign === "right" || textAlign === "end") {
+        x = rect.right - rootRect.left - paddingRight;
+
+        anchor = "end";
+      }
+
+      const y =
+        rect.top -
+        rootRect.top +
+        paddingTop +
+        Math.max(fontSize, (rect.height - paddingTop) / 2 + fontSize / 2);
+
+      parts.push(
+        `<text x="${x}" y="${y}" text-anchor="${anchor}" ` +
+          `fill="${escapeXml(normalizeColor(style.color) || "#222")}" ` +
+          `font-family="${escapeXml(style.fontFamily || "Arial")}" ` +
+          `font-size="${fontSize}" font-weight="${escapeXml(
+            style.fontWeight || "400",
+          )}" dominant-baseline="alphabetic">${escapeXml(text)}</text>`,
+      );
+    }
+
+    function renderBorders(rect, rootRect, style, parts) {
+      const left = rect.left - rootRect.left;
+
+      const top = rect.top - rootRect.top;
+
+      const width = rect.width;
+
+      const height = rect.height;
+
+      const borders = [
+        {
+          side: "Top",
+          x1: left,
+          y1: top,
+          x2: left + width,
+          y2: top,
+        },
+        {
+          side: "Right",
+          x1: left + width,
+          y1: top,
+          x2: left + width,
+          y2: top + height,
+        },
+        {
+          side: "Bottom",
+          x1: left,
+          y1: top + height,
+          x2: left + width,
+          y2: top + height,
+        },
+        {
+          side: "Left",
+          x1: left,
+          y1: top,
+          x2: left,
+          y2: top + height,
+        },
+      ];
+
+      borders.forEach((border) => {
+        const borderWidth = parsePixels(
+          style["border" + border.side + "Width"],
+        );
+
+        const borderColor = normalizeColor(
+          style["border" + border.side + "Color"],
+        );
+
+        if (!borderWidth || !borderColor) {
+          return;
+        }
+
+        parts.push(
+          `<line x1="${border.x1}" y1="${border.y1}" ` +
+            `x2="${border.x2}" y2="${border.y2}" ` +
+            `stroke="${escapeXml(borderColor)}" stroke-width="${borderWidth}" />`,
+        );
+      });
+    }
+
+    function renderElement(element, rootRect, parts, isRoot) {
+      const rect = element.getBoundingClientRect();
+
+      if (!rect.width || !rect.height) {
+        return;
+      }
+
+      const style = window.getComputedStyle(element);
+
+      const left = rect.left - rootRect.left;
+
+      const top = rect.top - rootRect.top;
+
+      const background = normalizeColor(style.backgroundColor);
+
+      if (background) {
+        parts.push(
+          `<rect x="${left}" y="${top}" width="${rect.width}" ` +
+            `height="${rect.height}" fill="${escapeXml(background)}" />`,
+        );
+      }
+
+      renderBorders(rect, rootRect, style, parts);
+
+      renderText(element, rect, rootRect, style, parts);
+
+      Array.from(element.children).forEach((child) => {
+        renderElement(child, rootRect, parts, false);
+      });
+    }
+
+    function buildPureSvg(element, width, height) {
+      const rootRect = element.getBoundingClientRect();
+
+      const parts = [
+        `<rect x="0" y="0" width="${width}" height="${height}" fill="white" />`,
+      ];
+
+      renderElement(element, rootRect, parts, true);
+
+      return `
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="${width}"
+          height="${height}"
+          viewBox="0 0 ${width} ${height}"
+        >
+          ${parts.join("\n")}
+        </svg>
+      `;
+    }
+
+    function renderElementToPng(element) {
+      const rect = element.getBoundingClientRect();
+
+      const width = Math.ceil(
+        Math.max(element.scrollWidth || 0, rect.width || 0),
+      );
+
+      const height = Math.ceil(
+        Math.max(element.scrollHeight || 0, rect.height || 0),
+      );
+
+      if (!width || !height) {
+        return Promise.reject(new Error("Aucun contenu à exporter."));
+      }
+
+      if (width > EXPORT_MAX_WIDTH || height > EXPORT_MAX_HEIGHT) {
+        return Promise.reject(
+          new Error("Le tableau est trop volumineux pour être exporté."),
+        );
+      }
+
+      const svg = buildPureSvg(element, width, height);
+
+      const svgBlob = new Blob([svg], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+
+      const svgUrl = URL.createObjectURL(svgBlob);
+
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+
+        image.onload = function () {
+          URL.revokeObjectURL(svgUrl);
+
+          const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+          const canvas = document.createElement("canvas");
+
+          canvas.width = Math.ceil(width * pixelRatio);
+
+          canvas.height = Math.ceil(height * pixelRatio);
+
+          canvas.style.width = width + "px";
+
+          canvas.style.height = height + "px";
+
+          const context = canvas.getContext("2d");
+
+          if (!context) {
+            reject(new Error("Impossible de préparer l'image."));
+
+            return;
+          }
+
+          context.fillStyle = "white";
+
+          context.fillRect(0, 0, canvas.width, canvas.height);
+
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error("Impossible de générer l'image PNG."));
+
+              return;
+            }
+
+            resolve(blob);
+          }, "image/png");
+        };
+
+        image.onerror = function () {
+          URL.revokeObjectURL(svgUrl);
+
+          reject(new Error("Impossible de convertir le tableau en image."));
+        };
+
+        image.src = svgUrl;
+      });
+    }
+
+    function blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onloadend = function () {
+          const result = String(reader.result || "");
+
+          const separatorIndex = result.indexOf(",");
+
+          resolve(
+            separatorIndex === -1
+              ? result
+              : result.substring(separatorIndex + 1),
+          );
+        };
+
+        reader.onerror = function () {
+          reject(new Error("Impossible de préparer l'image pour l'email."));
+        };
+
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    function downloadBlob(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+
+      link.href = url;
+
+      link.download = fileName || "tableau-export.png";
+
+      document.body.appendChild(link);
+
+      link.click();
+
+      link.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function downloadElementAsImage(target, options = {}) {
+      const element = resolveElement(target);
+
+      if (!element) {
+        throw new Error("Élément à exporter introuvable.");
+      }
+
+      const blob = await renderElementToPng(element);
+
+      downloadBlob(blob, options.fileName);
+
+      return blob;
+    }
+
+    async function sendElementImageByEmail(target, options = {}) {
+      const element = resolveElement(target);
+
+      if (!element) {
+        throw new Error("Élément à exporter introuvable.");
+      }
+
+      const blob = await renderElementToPng(element);
+
+      const imageBase64 = await blobToBase64(blob);
+
+      return new Promise((resolve, reject) => {
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler((error) => {
+            reject(
+              new Error(
+                error?.message ||
+                  String(error) ||
+                  "Impossible d'envoyer l'image par email.",
+              ),
+            );
+          })
+          .sendImageExportEmail({
+            recipient: options.recipient,
+            subject: options.subject,
+            body: options.body,
+            fileName: options.fileName,
+            mimeType: "image/png",
+            imageBase64: imageBase64,
+          });
+      });
+    }
+
+    return {
+      downloadElementAsImage,
+      sendElementImageByEmail,
+      renderElementToPng,
+    };
+  })();
+</script>

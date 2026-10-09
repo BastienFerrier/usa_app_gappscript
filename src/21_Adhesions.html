@@ -57,6 +57,24 @@
       </div>
     </div>
 
+    <div class="adhesion-list-actions">
+      <button
+        type="button"
+        class="btn-secondary"
+        onclick="downloadAdhesionsTableImage()"
+      >
+        ↓ Télécharger l'image
+      </button>
+
+      <button
+        type="button"
+        class="btn-secondary"
+        onclick="openAdhesionEmailExport()"
+      >
+        ✉ Envoyer par email
+      </button>
+    </div>
+
     <!-- =========================
          FILTRES
          ========================= -->
@@ -138,6 +156,103 @@
       </table>
     </div>
   </div>
+
+  <!-- =========================================================
+       EXPORT EMAIL
+       ========================================================= -->
+
+  <div
+    id="adhesion-export-email-overlay"
+    class="adhesion-detail-overlay"
+    onclick="handleAdhesionEmailExportOverlayClick(event)"
+  ></div>
+
+  <aside
+    id="adhesion-export-email-panel"
+    class="adhesion-detail-panel adhesion-export-panel"
+    aria-hidden="true"
+  >
+    <div class="adhesion-detail-header">
+      <div>
+        <div class="adhesion-detail-title-row">
+          <h2>Envoyer le tableau</h2>
+        </div>
+
+        <div class="adhesion-detail-subtitle">
+          L'image du tableau filtré sera jointe à l'email.
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="adhesion-detail-close"
+        onclick="closeAdhesionEmailExport()"
+        aria-label="Fermer"
+      >
+        ×
+      </button>
+    </div>
+
+    <div class="adhesion-detail-content">
+      <div class="adhesion-detail-section">
+        <div class="adhesion-detail-field">
+          <label for="adhesion-export-recipient">Destinataire</label>
+
+          <input
+            id="adhesion-export-recipient"
+            type="email"
+            placeholder="coach@example.com"
+            autocomplete="email"
+          />
+        </div>
+
+        <div class="adhesion-detail-field">
+          <label for="adhesion-export-subject">Objet</label>
+
+          <input id="adhesion-export-subject" type="text" />
+        </div>
+
+        <div class="adhesion-detail-field">
+          <label for="adhesion-export-body">Message</label>
+
+          <textarea id="adhesion-export-body" rows="6"></textarea>
+        </div>
+
+        <div
+          id="adhesion-export-email-error"
+          class="adhesion-detail-error"
+          style="display: none"
+        ></div>
+      </div>
+    </div>
+
+    <div class="adhesion-detail-footer">
+      <div
+        id="adhesion-export-email-status"
+        class="adhesion-detail-saving"
+        style="display: none"
+      >
+        Envoi en cours...
+      </div>
+
+      <button
+        type="button"
+        class="btn-secondary"
+        onclick="closeAdhesionEmailExport()"
+      >
+        Annuler
+      </button>
+
+      <button
+        id="adhesion-export-email-send"
+        type="button"
+        class="btn-primary"
+        onclick="sendAdhesionsTableEmail()"
+      >
+        Envoyer l'image
+      </button>
+    </div>
+  </aside>
 
   <!-- =========================================================
        OVERLAY IMPORTS

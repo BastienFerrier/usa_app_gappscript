@@ -3835,8 +3835,191 @@
   }
 
   /**
-   * Résumé du tableau affiché.
+   * Retourne le tableau actuellement affiché.
+   *
+   * displayAdhesions() reconstruit uniquement
+   * les lignes filtrées dans ce tableau :
+   * l'export reste donc aligné avec l'écran.
    */
+  function getAdhesionsExportTable() {
+    const table = document.querySelector(
+      "#adhesions-table-container table.adhesions-table",
+    );
+
+    if (!table || !table.querySelector("tbody tr")) {
+      throw new Error("Aucune adhésion affichée à exporter.");
+    }
+
+    return table;
+  }
+
+  function getAdhesionsExportFileName() {
+    const category = String(
+      document.getElementById("adhesions-category-filter")?.value || "",
+    ).trim();
+
+    const suffix = category || "toutes-les-equipes";
+
+    return "suivi-adhesions-" + suffix.toLowerCase() + ".png";
+  }
+
+  /**
+   * Télécharge l'image du tableau filtré.
+   */
+  async function downloadAdhesionsTableImage() {
+    try {
+      const table = getAdhesionsExportTable();
+
+      await USABExport.downloadElementAsImage(table, {
+        fileName: getAdhesionsExportFileName(),
+      });
+    } catch (error) {
+      alert(error.message || error);
+    }
+  }
+
+  /**
+   * Ouvre le formulaire d'envoi email.
+   */
+  function openAdhesionEmailExport() {
+    try {
+      getAdhesionsExportTable();
+    } catch (error) {
+      alert(error.message || error);
+
+      return;
+    }
+
+    const category = String(
+      document.getElementById("adhesions-category-filter")?.value || "",
+    ).trim();
+
+    const label = category || "toutes les équipes";
+
+    document.getElementById("adhesion-export-recipient").value = "";
+
+    document.getElementById("adhesion-export-subject").value =
+      "Suivi des adhésions - " + label;
+
+    document.getElementById("adhesion-export-body").value =
+      "Bonjour,\n\nVeuillez trouver en pièce jointe le suivi des adhésions pour " +
+      label +
+      ".\n\nBonne journée.";
+
+    const error = document.getElementById("adhesion-export-email-error");
+
+    if (error) {
+      error.style.display = "none";
+
+      error.textContent = "";
+    }
+
+    const overlay = document.getElementById("adhesion-export-email-overlay");
+
+    const panel = document.getElementById("adhesion-export-email-panel");
+
+    overlay.classList.add("open");
+
+    panel.classList.add("open");
+
+    panel.setAttribute("aria-hidden", "false");
+
+    document.getElementById("adhesion-export-recipient").focus();
+  }
+
+  function closeAdhesionEmailExport() {
+    const overlay = document.getElementById("adhesion-export-email-overlay");
+
+    const panel = document.getElementById("adhesion-export-email-panel");
+
+    if (overlay) {
+      overlay.classList.remove("open");
+    }
+
+    if (panel) {
+      panel.classList.remove("open");
+
+      panel.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function handleAdhesionEmailExportOverlayClick(event) {
+    if (event.target === event.currentTarget) {
+      closeAdhesionEmailExport();
+    }
+  }
+
+  /**
+   * Envoie l'image filtrée en pièce jointe.
+   */
+  async function sendAdhesionsTableEmail() {
+    const recipient = String(
+      document.getElementById("adhesion-export-recipient")?.value || "",
+    ).trim();
+
+    const subject = String(
+      document.getElementById("adhesion-export-subject")?.value || "",
+    ).trim();
+
+    const body = String(
+      document.getElementById("adhesion-export-body")?.value || "",
+    ).trim();
+
+    const error = document.getElementById("adhesion-export-email-error");
+
+    const status = document.getElementById("adhesion-export-email-status");
+
+    const button = document.getElementById("adhesion-export-email-send");
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+      error.textContent = "Saisissez une adresse email valide.";
+
+      error.style.display = "block";
+
+      return;
+    }
+
+    if (!subject) {
+      error.textContent = "L'objet de l'email est obligatoire.";
+
+      error.style.display = "block";
+
+      return;
+    }
+
+    try {
+      const table = getAdhesionsExportTable();
+
+      button.disabled = true;
+
+      status.style.display = "block";
+
+      error.style.display = "none";
+
+      await USABExport.sendElementImageByEmail(table, {
+        recipient: recipient,
+        subject: subject,
+        body: body,
+        fileName: getAdhesionsExportFileName(),
+      });
+
+      closeAdhesionEmailExport();
+
+      alert("Email envoyé avec l'image du tableau en pièce jointe.");
+    } catch (sendError) {
+      error.textContent = sendError.message || sendError;
+
+      error.style.display = "block";
+    } finally {
+      button.disabled = false;
+
+      status.style.display = "none";
+    }
+  }
+
+  /* =========================
+   RESUME DU TABLEAU ADHESIONS
+   ========================= */
   function displayAdhesionsSummary(adhesions) {
     const container = document.getElementById("adhesions-summary");
 
