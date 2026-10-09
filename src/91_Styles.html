@@ -2205,13 +2205,11 @@
   .adhesion-list-actions {
     display: flex;
 
-    justify-content: flex-end;
+    align-items: center;
 
     gap: 8px;
 
-    flex-wrap: wrap;
-
-    margin: 0 0 14px;
+    margin-left: auto;
   }
 
   .adhesion-export-panel {
@@ -3122,6 +3120,16 @@
       width: 100%;
 
       min-width: 0;
+    }
+
+    .adhesion-list-actions {
+      width: 100%;
+
+      margin-left: 0;
+    }
+
+    .adhesion-list-actions button {
+      flex: 1;
     }
 
     .adhesion-import-panel {
