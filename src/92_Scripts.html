@@ -100,6 +100,10 @@
       return;
     }
 
+    if (page === "imports" && (!currentUser || currentUser.role !== "ADMIN")) {
+      return;
+    }
+
     /*
      * Cache toutes les pages.
      */
@@ -142,6 +146,10 @@
 
     if (page === "communication") {
       loadCommunication();
+    }
+
+    if (page === "imports") {
+      loadAdminImports();
     }
 
     /*
@@ -691,6 +699,12 @@
 
     if (communicationMenu && user.role === "ADMIN") {
       communicationMenu.classList.remove("hidden");
+    }
+
+    const importsMenu = document.getElementById("menu-imports");
+
+    if (importsMenu && user.role === "ADMIN") {
+      importsMenu.classList.remove("hidden");
     }
   }
 
@@ -1243,6 +1257,209 @@
     const message = error?.message || String(error || "");
 
     container.className = "communication-error";
+    container.textContent = message;
+    container.style.display = message ? "block" : "none";
+  }
+
+  /* =========================
+   IMPORTS ADMIN
+   ========================= */
+
+  let adminImportCurrentSaison = "";
+
+  function loadAdminImports() {
+    if (!currentUser || currentUser.role !== "ADMIN") {
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler((activeSaison) => {
+        google.script.run
+          .withSuccessHandler((saisons) => {
+            const select = document.getElementById("admin-import-season");
+
+            if (!select) {
+              return;
+            }
+
+            select.innerHTML = "";
+
+            (saisons || []).forEach((saison) => {
+              const option = document.createElement("option");
+
+              option.value = saison.Saison_id;
+              option.textContent = saison.Libelle || saison.Saison_id;
+              select.appendChild(option);
+            });
+
+            adminImportCurrentSaison =
+              activeSaison?.Saison_id || saisons?.[0]?.Saison_id || "";
+
+            select.value = adminImportCurrentSaison;
+
+            loadAdminImportSources();
+          })
+          .withFailureHandler(showAdminImportError)
+          .listSaisons();
+      })
+      .withFailureHandler(showAdminImportError)
+      .getActiveSaison();
+  }
+
+  function loadAdminImportSources() {
+    const select = document.getElementById("admin-import-season");
+
+    adminImportCurrentSaison = select?.value || adminImportCurrentSaison;
+
+    loadAdminAssoFiles();
+    loadAdminFbiFiles();
+    loadAdminMatchFiles();
+  }
+
+  function loadAdminAssoFiles() {
+    google.script.run
+      .withSuccessHandler((files) => {
+        const container = document.getElementById("admin-asso-files");
+
+        container.innerHTML =
+          (files || [])
+            .map(
+              (file, index) => `
+              <label class="admin-import-file-row">
+                <span>${escapeHtml(file.name)}</span>
+                <select data-admin-asso-file="${index}">
+                  <option value="">Type...</option>
+                  <option value="VALIDE">Validées</option>
+                  <option value="ATTENTE_PAIEMENT">Attente paiement</option>
+                  <option value="ATTENTE_VALIDATION">Attente validation</option>
+                </select>
+              </label>
+            `,
+            )
+            .join("") || "Aucun fichier AssoConnect.";
+
+        container._files = files || [];
+      })
+      .withFailureHandler(showAdminImportError)
+      .getAssoConnectExports(adminImportCurrentSaison);
+  }
+
+  function loadAdminFbiFiles() {
+    google.script.run
+      .withSuccessHandler((files) => {
+        const container = document.getElementById("admin-fbi-files");
+
+        container.textContent =
+          (files || [])
+            .map((file) => file.name + " (" + file.type + ")")
+            .join("\n") || "Aucun fichier FBI.";
+
+        container._files = files || [];
+      })
+      .withFailureHandler(showAdminImportError)
+      .getFbiImportFiles(adminImportCurrentSaison);
+  }
+
+  function loadAdminMatchFiles() {
+    google.script.run
+      .withSuccessHandler((files) => {
+        const container = document.getElementById("admin-match-files");
+
+        container.textContent =
+          (files || []).map((file) => file.name).join("\n") ||
+          "Aucun fichier FBI Matchs.";
+
+        container._files = files || [];
+      })
+      .withFailureHandler(showAdminImportError)
+      .getFbiMatchImportFiles(adminImportCurrentSaison);
+  }
+
+  function runAdminAssoImport() {
+    const container = document.getElementById("admin-asso-files");
+    const files = (container?._files || []).map((file, index) => ({
+      id: file.id,
+      type: container.querySelector(`[data-admin-asso-file="${index}"]`)?.value,
+    }));
+
+    if (!files.length || files.some((file) => !file.type)) {
+      showAdminImportError(
+        "Sélectionnez le type de chaque fichier AssoConnect.",
+      );
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(() => {
+        google.script.run
+          .withSuccessHandler((result) => {
+            showAdminImportMessage(
+              "AssoConnect importé : " +
+                result.lignes +
+                " ligne(s), " +
+                result.adhesionsCreated +
+                " adhésion(s) créée(s).",
+            );
+          })
+          .withFailureHandler(showAdminImportError)
+          .syncAssoConnectToAdhesions(adminImportCurrentSaison);
+      })
+      .withFailureHandler(showAdminImportError)
+      .importAssoConnect(adminImportCurrentSaison, files);
+  }
+
+  function runAdminFbiImport() {
+    google.script.run
+      .withSuccessHandler((importResult) => {
+        google.script.run
+          .withSuccessHandler((syncResult) => {
+            showAdminImportMessage(
+              "FBI synchronisé : " +
+                importResult.rows +
+                " ligne(s), " +
+                syncResult.adhesionsUpdated +
+                " adhésion(s) mise(s) à jour.",
+            );
+          })
+          .withFailureHandler(showAdminImportError)
+          .syncFbiToAdhesions(adminImportCurrentSaison);
+      })
+      .withFailureHandler(showAdminImportError)
+      .importFbi(adminImportCurrentSaison);
+  }
+
+  function runAdminMatchImport() {
+    google.script.run
+      .withSuccessHandler((result) => {
+        showAdminImportMessage(
+          "Matchs importés : " +
+            result.created +
+            " créé(s), " +
+            result.updated +
+            " mis à jour.",
+        );
+      })
+      .withFailureHandler(showAdminImportError)
+      .importFbiMatchs(adminImportCurrentSaison);
+  }
+
+  function showAdminImportMessage(message) {
+    const container = document.getElementById("admin-import-message");
+
+    container.className = "admin-import-message success";
+    container.textContent = message;
+    container.style.display = "block";
+  }
+
+  function showAdminImportError(error) {
+    const container = document.getElementById("admin-import-message");
+    const message = error?.message || String(error || "");
+
+    if (!container) {
+      return;
+    }
+
+    container.className = "admin-import-message error";
     container.textContent = message;
     container.style.display = message ? "block" : "none";
   }

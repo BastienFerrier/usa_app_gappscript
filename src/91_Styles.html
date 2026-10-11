@@ -3342,6 +3342,161 @@
   }
 
   /* =========================
+   IMPORTS ADMIN
+   ========================= */
+
+  .admin-import-season {
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+  }
+
+  .admin-import-season label {
+    color: #666;
+
+    font-size: 12px;
+    font-weight: bold;
+  }
+
+  .admin-import-season select {
+    min-width: 150px;
+
+    padding: 8px 10px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    background: white;
+
+    font: inherit;
+  }
+
+  .admin-import-message {
+    margin-bottom: 18px;
+
+    padding: 11px 13px;
+
+    border-radius: 6px;
+
+    font-size: 13px;
+  }
+
+  .admin-import-message.success {
+    background: #ecfdf3;
+
+    color: #067647;
+  }
+
+  .admin-import-message.error {
+    background: #fef3f2;
+
+    color: #b42318;
+  }
+
+  .admin-import-grid {
+    display: grid;
+
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    gap: 18px;
+  }
+
+  .admin-import-card {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 12px;
+
+    padding: 18px;
+
+    border: 1px solid #ddd;
+
+    border-radius: 8px;
+
+    background: white;
+  }
+
+  .admin-import-card h2 {
+    margin: 0;
+
+    font-size: 16px;
+  }
+
+  .admin-import-card p {
+    min-height: 36px;
+
+    margin: 0;
+
+    color: #777;
+
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .admin-import-files {
+    min-height: 72px;
+
+    padding: 9px;
+
+    border: 1px solid #eee;
+
+    border-radius: 6px;
+
+    background: #fafafa;
+
+    color: #555;
+
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-line;
+  }
+
+  .admin-import-file-row {
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 5px;
+
+    margin-bottom: 8px;
+
+    color: #333;
+  }
+
+  .admin-import-file-row select {
+    padding: 6px 8px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 5px;
+
+    background: white;
+
+    font: inherit;
+    font-size: 12px;
+  }
+
+  .admin-import-card .primary-button {
+    margin-top: auto;
+  }
+
+  @media (max-width: 900px) {
+    .admin-import-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .admin-import-season {
+      width: 100%;
+
+      justify-content: space-between;
+    }
+  }
+
+  /* =========================
    COMMUNICATION
    ========================= */
 

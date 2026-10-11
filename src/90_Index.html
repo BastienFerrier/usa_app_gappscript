@@ -124,6 +124,18 @@
 
             <span class="menu-label"> Communication </span>
           </button>
+
+          <button
+            id="menu-imports"
+            class="menu-item hidden"
+            data-page="imports"
+            onclick="navigateTo('imports')"
+            title="Imports"
+          >
+            <span class="menu-icon"> ⇩ </span>
+
+            <span class="menu-label"> Imports </span>
+          </button>
         </nav>
 
         <!-- FOOTER -->
@@ -171,6 +183,10 @@
         <!-- COMMUNICATION -->
 
         <?!= include("94_Communication"); ?>
+
+        <!-- IMPORTS -->
+
+        <?!= include("95_Imports"); ?>
 
         <!-- PLANNING -->
 

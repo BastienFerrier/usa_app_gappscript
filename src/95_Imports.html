@@ -1,0 +1,47 @@
+<section id="page-imports" class="app-page hidden">
+  <div class="page-header">
+    <div>
+      <h1>Imports</h1>
+
+      <p class="page-description">
+        Imports AssoConnect et FBI du club.
+      </p>
+    </div>
+
+    <div class="admin-import-season">
+      <label for="admin-import-season">Saison</label>
+      <select id="admin-import-season" onchange="loadAdminImportSources()"></select>
+    </div>
+  </div>
+
+  <div id="admin-import-message" class="admin-import-message" style="display: none"></div>
+
+  <div class="admin-import-grid">
+    <div class="admin-import-card">
+      <h2>AssoConnect</h2>
+      <p>Import des inscriptions et synchronisation des adhésions.</p>
+      <div id="admin-asso-files" class="admin-import-files">Chargement...</div>
+      <button type="button" class="primary-button" onclick="runAdminAssoImport()">
+        Importer AssoConnect
+      </button>
+    </div>
+
+    <div class="admin-import-card">
+      <h2>FBI — Licences et préinscriptions</h2>
+      <p>Import du cache FBI puis synchronisation des adhésions.</p>
+      <div id="admin-fbi-files" class="admin-import-files">Chargement...</div>
+      <button type="button" class="primary-button" onclick="runAdminFbiImport()">
+        Synchroniser FBI
+      </button>
+    </div>
+
+    <div class="admin-import-card">
+      <h2>FBI — Matchs</h2>
+      <p>Import des rencontres dans la feuille Matchs.</p>
+      <div id="admin-match-files" class="admin-import-files">Chargement...</div>
+      <button type="button" class="primary-button" onclick="runAdminMatchImport()">
+        Importer les matchs
+      </button>
+    </div>
+  </div>
+</section>

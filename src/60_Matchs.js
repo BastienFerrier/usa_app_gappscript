@@ -42,6 +42,9 @@ const MATCHS_SHEET_HEADERS = [
   "Score2",
   "Lieu",
   "Code_eMarque",
+  "Forfait1",
+  "Forfait2",
+  "Fbi_numero_match",
   "Responsable_salle",
   "Date_maj",
 ];
@@ -161,7 +164,15 @@ function ensureMatchsColumns(sheet) {
     .getValues()[0]
     .map((value) => String(value).trim());
 
-  const requiredHeaders = ["Heure", "Score1", "Score2", "Code_eMarque"];
+  const requiredHeaders = [
+    "Heure",
+    "Score1",
+    "Score2",
+    "Code_eMarque",
+    "Forfait1",
+    "Forfait2",
+    "Fbi_numero_match",
+  ];
 
   const missingHeaders = requiredHeaders.filter(
     (header) => !headers.includes(header),
