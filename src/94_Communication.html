@@ -1,0 +1,108 @@
+<section id="page-communication" class="app-page hidden">
+  <div class="page-header communication-header">
+    <div>
+      <h1>Communication</h1>
+
+      <p class="page-description">
+        Préparez une liste de destinataires à partir des adhésions actives.
+      </p>
+    </div>
+  </div>
+
+  <div class="communication-card">
+    <div class="communication-card-header">
+      <div>
+        <h2>Destinataires par catégorie</h2>
+
+        <p>
+          Les adresses du joueur et des responsables légaux sont dédupliquées et
+          prêtes à être copiées dans le champ « À ».
+        </p>
+      </div>
+    </div>
+
+    <div class="communication-filters">
+      <div class="communication-season">
+        <label for="communication-season">Saison</label>
+
+        <select
+          id="communication-season"
+          onchange="
+            communicationCurrentSaison = this.value;
+            loadCommunicationCategories();
+          "
+        ></select>
+      </div>
+
+      <div class="communication-categories">
+        <div class="communication-field-label">Catégories</div>
+
+        <div
+          id="communication-category-options"
+          class="communication-category-options"
+        >
+          Chargement des catégories...
+        </div>
+      </div>
+    </div>
+
+    <div class="communication-actions">
+      <button
+        type="button"
+        class="secondary-button"
+        onclick="selectAllCommunicationCategories()"
+      >
+        Tout sélectionner
+      </button>
+
+      <button
+        type="button"
+        class="secondary-button"
+        onclick="clearCommunicationCategories()"
+      >
+        Effacer la sélection
+      </button>
+
+      <button
+        id="communication-generate-button"
+        type="button"
+        class="primary-button"
+        onclick="generateCommunicationRecipients()"
+      >
+        Générer la liste
+      </button>
+    </div>
+
+    <div
+      id="communication-error"
+      class="communication-error"
+      style="display: none"
+    ></div>
+
+    <div
+      id="communication-result"
+      class="communication-result"
+      style="display: none"
+    >
+      <div id="communication-summary" class="communication-summary"></div>
+
+      <textarea
+        id="communication-emails"
+        class="communication-emails"
+        readonly
+        rows="5"
+        placeholder="Les adresses apparaitront ici..."
+      ></textarea>
+
+      <div class="communication-result-actions">
+        <button
+          type="button"
+          class="secondary-button"
+          onclick="copyCommunicationEmails()"
+        >
+          Copier les adresses
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

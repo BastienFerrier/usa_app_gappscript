@@ -112,6 +112,18 @@
 
             <span class="menu-label"> Accès </span>
           </button>
+
+          <button
+            id="menu-communication"
+            class="menu-item hidden"
+            data-page="communication"
+            onclick="navigateTo('communication')"
+            title="Communication"
+          >
+            <span class="menu-icon"> ✉ </span>
+
+            <span class="menu-label"> Communication </span>
+          </button>
         </nav>
 
         <!-- FOOTER -->
@@ -155,6 +167,10 @@
         <!-- ACCES -->
 
         <?!= include("05_Access"); ?>
+
+        <!-- COMMUNICATION -->
+
+        <?!= include("94_Communication"); ?>
 
         <!-- PLANNING -->
 

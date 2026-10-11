@@ -93,6 +93,13 @@
       return;
     }
 
+    if (
+      page === "communication" &&
+      (!currentUser || currentUser.role !== "ADMIN")
+    ) {
+      return;
+    }
+
     /*
      * Cache toutes les pages.
      */
@@ -131,6 +138,10 @@
 
     if (page === "access" && !accessUsersLoaded) {
       loadAccessUsers();
+    }
+
+    if (page === "communication") {
+      loadCommunication();
     }
 
     /*
@@ -675,6 +686,12 @@
     if (accessMenu && user.role === "ADMIN") {
       accessMenu.classList.remove("hidden");
     }
+
+    const communicationMenu = document.getElementById("menu-communication");
+
+    if (communicationMenu && user.role === "ADMIN") {
+      communicationMenu.classList.remove("hidden");
+    }
   }
 
   function displayCurrentUser(user) {
@@ -1025,6 +1042,211 @@
 
   `;
   }
+  /* =========================
+   COMMUNICATION
+   ========================= */
+
+  let communicationCurrentSaison = "";
+
+  function loadCommunication() {
+    if (!currentUser || currentUser.role !== "ADMIN") {
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler((activeSaison) => {
+        google.script.run
+          .withSuccessHandler((saisons) => {
+            const select = document.getElementById("communication-season");
+
+            if (!select) {
+              return;
+            }
+
+            select.innerHTML = "";
+
+            (saisons || []).forEach((saison) => {
+              const option = document.createElement("option");
+
+              option.value = saison.Saison_id;
+
+              option.textContent = saison.Libelle || saison.Saison_id;
+
+              select.appendChild(option);
+            });
+
+            const activeId =
+              activeSaison?.Saison_id || saisons?.[0]?.Saison_id || "";
+
+            communicationCurrentSaison = activeId;
+
+            select.value = activeId;
+
+            loadCommunicationCategories();
+          })
+          .withFailureHandler(showCommunicationError)
+          .listSaisons();
+      })
+      .withFailureHandler(showCommunicationError)
+      .getActiveSaison();
+  }
+
+  function loadCommunicationCategories() {
+    const container = document.getElementById("communication-category-options");
+
+    if (!container || !communicationCurrentSaison) {
+      return;
+    }
+
+    container.textContent = "Chargement des catégories...";
+
+    google.script.run
+      .withSuccessHandler((categories) => {
+        container.innerHTML = "";
+
+        if (!categories || categories.length === 0) {
+          container.textContent = "Aucune catégorie active.";
+
+          return;
+        }
+
+        categories.forEach((category) => {
+          const label = document.createElement("label");
+
+          label.className = "communication-category-option";
+
+          const checkbox = document.createElement("input");
+
+          checkbox.type = "checkbox";
+
+          checkbox.value = category;
+
+          const text = document.createElement("span");
+
+          text.textContent = category;
+
+          label.appendChild(checkbox);
+
+          label.appendChild(text);
+
+          container.appendChild(label);
+        });
+      })
+      .withFailureHandler(showCommunicationError)
+      .getCommunicationCategories(communicationCurrentSaison);
+  }
+
+  function getCommunicationSelectedCategories() {
+    return Array.from(
+      document.querySelectorAll(
+        '#communication-category-options input[type="checkbox"]:checked',
+      ),
+    ).map((input) => input.value);
+  }
+
+  function selectAllCommunicationCategories() {
+    document
+      .querySelectorAll(
+        '#communication-category-options input[type="checkbox"]',
+      )
+      .forEach((input) => {
+        input.checked = true;
+      });
+  }
+
+  function clearCommunicationCategories() {
+    document
+      .querySelectorAll(
+        '#communication-category-options input[type="checkbox"]',
+      )
+      .forEach((input) => {
+        input.checked = false;
+      });
+  }
+
+  function generateCommunicationRecipients() {
+    const button = document.getElementById("communication-generate-button");
+
+    const result = document.getElementById("communication-result");
+
+    const textarea = document.getElementById("communication-emails");
+
+    const summary = document.getElementById("communication-summary");
+
+    const categories = getCommunicationSelectedCategories();
+
+    button.disabled = true;
+
+    showCommunicationError("");
+
+    google.script.run
+      .withSuccessHandler((data) => {
+        button.disabled = false;
+
+        textarea.value = data.emails || "";
+
+        summary.textContent =
+          data.emailCount +
+          " adresse(s) pour " +
+          data.adhesions +
+          " adhésion(s) active(s).";
+
+        result.style.display = "block";
+      })
+      .withFailureHandler((error) => {
+        button.disabled = false;
+
+        showCommunicationError(error);
+      })
+      .getCommunicationRecipients(communicationCurrentSaison, categories);
+  }
+
+  function copyCommunicationEmails() {
+    const textarea = document.getElementById("communication-emails");
+
+    if (!textarea || !textarea.value) {
+      return;
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(textarea.value).then(() => {
+        showCommunicationMessage("Adresses copiées dans le presse-papiers.");
+      });
+
+      return;
+    }
+
+    textarea.select();
+
+    document.execCommand("copy");
+
+    showCommunicationMessage("Adresses copiées dans le presse-papiers.");
+  }
+
+  function showCommunicationMessage(message) {
+    const error = document.getElementById("communication-error");
+
+    if (error) {
+      error.className = "communication-message";
+      error.textContent = message;
+      error.style.display = message ? "block" : "none";
+    }
+  }
+
+  function showCommunicationError(error) {
+    const container = document.getElementById("communication-error");
+
+    if (!container) {
+      return;
+    }
+
+    const message = error?.message || String(error || "");
+
+    container.className = "communication-error";
+    container.textContent = message;
+    container.style.display = message ? "block" : "none";
+  }
+
   /* =========================
    ARBITRAGE
    ========================= */

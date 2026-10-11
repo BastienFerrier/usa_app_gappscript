@@ -3342,6 +3342,208 @@
   }
 
   /* =========================
+   COMMUNICATION
+   ========================= */
+
+  .communication-card {
+    max-width: 900px;
+
+    padding: 22px;
+
+    border: 1px solid #ddd;
+
+    border-radius: 8px;
+
+    background: white;
+  }
+
+  .communication-card-header {
+    margin-bottom: 20px;
+  }
+
+  .communication-card-header h2 {
+    margin: 0 0 5px;
+
+    font-size: 18px;
+  }
+
+  .communication-card-header p {
+    margin: 0;
+
+    color: #777;
+
+    font-size: 13px;
+  }
+
+  .communication-filters {
+    display: grid;
+
+    grid-template-columns: 220px minmax(0, 1fr);
+
+    gap: 20px;
+
+    align-items: start;
+  }
+
+  .communication-season label,
+  .communication-field-label {
+    display: block;
+
+    margin-bottom: 7px;
+
+    color: #666;
+
+    font-size: 11px;
+
+    font-weight: bold;
+
+    text-transform: uppercase;
+  }
+
+  .communication-season select {
+    width: 100%;
+
+    padding: 9px 11px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    background: white;
+
+    font: inherit;
+  }
+
+  .communication-category-options {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 8px;
+
+    min-height: 38px;
+
+    padding: 8px;
+
+    border: 1px solid #eee;
+
+    border-radius: 6px;
+
+    background: #fafafa;
+  }
+
+  .communication-category-option {
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    padding: 6px 9px;
+
+    border: 1px solid #ddd;
+
+    border-radius: 5px;
+
+    background: white;
+
+    color: #333;
+
+    font-size: 12px;
+
+    cursor: pointer;
+  }
+
+  .communication-category-option input {
+    accent-color: #e0081a;
+  }
+
+  .communication-actions {
+    display: flex;
+
+    gap: 8px;
+
+    flex-wrap: wrap;
+
+    margin-top: 20px;
+  }
+
+  .communication-error,
+  .communication-message {
+    margin-top: 16px;
+
+    padding: 10px 12px;
+
+    border-radius: 6px;
+
+    font-size: 13px;
+  }
+
+  .communication-error {
+    background: #fef3f2;
+
+    color: #b42318;
+  }
+
+  .communication-message {
+    background: #ecfdf3;
+
+    color: #067647;
+  }
+
+  .communication-result {
+    margin-top: 22px;
+  }
+
+  .communication-summary {
+    margin-bottom: 8px;
+
+    color: #666;
+
+    font-size: 13px;
+  }
+
+  .communication-emails {
+    width: 100%;
+
+    padding: 12px;
+
+    border: 1px solid #ccc;
+
+    border-radius: 6px;
+
+    background: #fafafa;
+
+    color: #333;
+
+    font: 13px/1.5 monospace;
+
+    resize: vertical;
+  }
+
+  .communication-result-actions {
+    display: flex;
+
+    justify-content: flex-end;
+
+    margin-top: 10px;
+  }
+
+  @media (max-width: 700px) {
+    .communication-card {
+      padding: 15px;
+    }
+
+    .communication-filters {
+      grid-template-columns: 1fr;
+    }
+
+    .communication-actions button {
+      flex: 1;
+    }
+  }
+
+  /* =========================
    MATCHS - HEADER
    ========================= */
 
