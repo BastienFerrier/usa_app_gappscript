@@ -1375,6 +1375,23 @@
       .getFbiMatchImportFiles(adminImportCurrentSaison);
   }
 
+  function setAdminImportButtonBusy(buttonId, busyText, busy) {
+    const button = document.getElementById(buttonId);
+
+    if (!button) {
+      return;
+    }
+
+    if (busy) {
+      button.dataset.defaultText = button.textContent.trim();
+      button.disabled = true;
+      button.textContent = busyText;
+    } else {
+      button.disabled = false;
+      button.textContent = button.dataset.defaultText || "Importer";
+    }
+  }
+
   function runAdminAssoImport() {
     const container = document.getElementById("admin-asso-files");
     const files = (container?._files || []).map((file, index) => ({
@@ -1389,10 +1406,23 @@
       return;
     }
 
+    setAdminImportButtonBusy(
+      "admin-asso-import-button",
+      "Import AssoConnect...",
+      true,
+    );
+
+    const handleError = (error) => {
+      setAdminImportButtonBusy("admin-asso-import-button", "", false);
+      showAdminImportError(error);
+    };
+
     google.script.run
       .withSuccessHandler(() => {
         google.script.run
           .withSuccessHandler((result) => {
+            setAdminImportButtonBusy("admin-asso-import-button", "", false);
+
             showAdminImportMessage(
               "AssoConnect importé : " +
                 result.lignes +
@@ -1401,18 +1431,31 @@
                 " adhésion(s) créée(s).",
             );
           })
-          .withFailureHandler(showAdminImportError)
+          .withFailureHandler(handleError)
           .syncAssoConnectToAdhesions(adminImportCurrentSaison);
       })
-      .withFailureHandler(showAdminImportError)
+      .withFailureHandler(handleError)
       .importAssoConnect(adminImportCurrentSaison, files);
   }
 
   function runAdminFbiImport() {
+    setAdminImportButtonBusy(
+      "admin-fbi-import-button",
+      "Synchronisation FBI...",
+      true,
+    );
+
+    const handleError = (error) => {
+      setAdminImportButtonBusy("admin-fbi-import-button", "", false);
+      showAdminImportError(error);
+    };
+
     google.script.run
       .withSuccessHandler((importResult) => {
         google.script.run
           .withSuccessHandler((syncResult) => {
+            setAdminImportButtonBusy("admin-fbi-import-button", "", false);
+
             showAdminImportMessage(
               "FBI synchronisé : " +
                 importResult.rows +
@@ -1421,16 +1464,29 @@
                 " adhésion(s) mise(s) à jour.",
             );
           })
-          .withFailureHandler(showAdminImportError)
+          .withFailureHandler(handleError)
           .syncFbiToAdhesions(adminImportCurrentSaison);
       })
-      .withFailureHandler(showAdminImportError)
+      .withFailureHandler(handleError)
       .importFbi(adminImportCurrentSaison);
   }
 
   function runAdminMatchImport() {
+    setAdminImportButtonBusy(
+      "admin-match-import-button",
+      "Import des matchs...",
+      true,
+    );
+
+    const handleError = (error) => {
+      setAdminImportButtonBusy("admin-match-import-button", "", false);
+      showAdminImportError(error);
+    };
+
     google.script.run
       .withSuccessHandler((result) => {
+        setAdminImportButtonBusy("admin-match-import-button", "", false);
+
         showAdminImportMessage(
           "Matchs importés : " +
             result.created +
@@ -1439,7 +1495,7 @@
             " mis à jour.",
         );
       })
-      .withFailureHandler(showAdminImportError)
+      .withFailureHandler(handleError)
       .importFbiMatchs(adminImportCurrentSaison);
   }
 
