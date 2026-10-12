@@ -6671,6 +6671,8 @@
 
   let matchsDetailOtm = [];
 
+  let matchsDetailRequestToken = 0;
+
   /**
    * Ouverture de la fiche détail
    * d'un match.
@@ -6702,6 +6704,12 @@
 
     matchsDetailCurrentId = normalized;
 
+    const requestToken = ++matchsDetailRequestToken;
+
+    const cachedMatch = matchsData.find(
+      (match) => String(match.Match_id || "").trim() === normalized,
+    );
+
     matchsDetailArbitres = [];
 
     matchsDetailOtm = [];
@@ -6722,9 +6730,18 @@
 
     applyMatchsAccessControl();
 
-    showMatchsDetailMessage("Chargement...", false);
+    showMatchsDetailMessage("Chargement des données complémentaires...", false);
 
-    const saisonId = String(matchsCurrentSaison || "").trim();
+    if (cachedMatch) {
+      fillMatchsDetailForm({
+        match: cachedMatch,
+        affectations: cachedMatch.affectations || [],
+      });
+    }
+
+    const saisonId = String(
+      (cachedMatch && cachedMatch.Saison_id) || matchsCurrentSaison || "",
+    ).trim();
 
     /*
      * Trois appels backend indépendants
@@ -6737,6 +6754,13 @@
     google.script.run
 
       .withSuccessHandler(function (detail) {
+        if (
+          requestToken !== matchsDetailRequestToken ||
+          normalized !== matchsDetailCurrentId
+        ) {
+          return;
+        }
+
         fillMatchsDetailForm(detail);
 
         showMatchsDetailMessage("", false);
@@ -6756,6 +6780,10 @@
     google.script.run
 
       .withSuccessHandler(function (arbitres) {
+        if (requestToken !== matchsDetailRequestToken) {
+          return;
+        }
+
         matchsDetailArbitres = Array.isArray(arbitres) ? arbitres : [];
 
         populateMatchsAffectationSelect(
@@ -6790,6 +6818,10 @@
     google.script.run
 
       .withSuccessHandler(function (otm) {
+        if (requestToken !== matchsDetailRequestToken) {
+          return;
+        }
+
         matchsDetailOtm = Array.isArray(otm) ? otm : [];
 
         applyMatchsOtmViviers();
@@ -6840,6 +6872,8 @@
     document.body.style.overflow = "";
 
     matchsDetailCurrentId = "";
+
+    matchsDetailRequestToken++;
 
     matchsDetailArbitres = [];
 

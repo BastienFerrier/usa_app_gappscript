@@ -640,6 +640,30 @@ function buildMatchsAssignmentDirectory(saisonId) {
           };
         });
     }
+
+    if (adhesionsSheet) {
+      readSheetAsObjects(adhesionsSheet)
+        .rows.filter(
+          (row) =>
+            String(row.Saison_id || "").trim() === String(saisonId).trim() &&
+            String(row.Statut_adhesion || "ACTIVE").trim() !== "ANNULEE",
+        )
+        .forEach((adhesion) => {
+          const contactId = String(adhesion.Contact_id || "").trim();
+          const contact = contactsById[contactId];
+
+          if (contactId && contact && !directory[contactId]) {
+            directory[contactId] = {
+              Personne_id: contactId,
+              Prenom: contact.Prenom || "",
+              Nom: contact.Nom || "",
+              Categorie: adhesion.Categorie || "",
+              Equipe: "",
+              Licence_ffbb: contact.Licence_ffbb || "",
+            };
+          }
+        });
+    }
   } catch (error) {
     console.warn("Impossible de résoudre le vivier arbitres : " + error);
   }
@@ -925,12 +949,18 @@ function getArbitresAffectables(saisonId) {
   arbitres.forEach((arbitre) => {
     const arbitreId = String(arbitre.Arbitre_id || "").trim();
 
-    if (!arbitreId) {
+    const personneId =
+      arbitreId ||
+      (arbitre.Type === "JOUEUR"
+        ? String(arbitre.Contact_id || "").trim()
+        : "");
+
+    if (!personneId) {
       return;
     }
 
     result.push({
-      Personne_id: arbitreId,
+      Personne_id: personneId,
 
       Nom: arbitre.Nom || "",
 
