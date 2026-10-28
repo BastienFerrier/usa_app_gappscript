@@ -527,7 +527,14 @@ function normalizeAssoConnectRow(
 
     Categorie: categorie,
 
-    Statut_paiement: get("Paiement"),
+    Statut_paiement: get(
+      "Paiement",
+      "Statut paiement",
+      "Statut du paiement",
+      "Statut de paiement",
+      "État du paiement",
+      "Etat du paiement",
+    ),
 
     Montant_du: get("Montant dû", "Montant du"),
 
@@ -600,62 +607,74 @@ function detectAssoConnectCategorie(source) {
   const categories = [
     {
       value: "U7",
-      patterns: ["u7 ("],
+      patterns: ["u7 (", "u7 ", "u7"],
     },
 
     {
       value: "U9",
-      patterns: ["u9 ("],
+      patterns: ["u9 (", "u9 ", "u9"],
     },
 
     {
       value: "U11F",
-      patterns: ["u11 feminin"],
+      patterns: ["u11 feminin", "u11 (feminin", "u11f"],
     },
 
     {
       value: "U11M",
-      patterns: ["u11 masculin"],
+      patterns: ["u11 masculin", "u11 (masculin", "u11m"],
     },
 
     {
       value: "U13F",
-      patterns: ["u13 feminin"],
+      patterns: ["u13 feminin", "u13 (feminin", "u13f"],
     },
 
     {
       value: "U13M",
-      patterns: ["u13 masculin"],
+      patterns: ["u13 masculin", "u13 (masculin", "u13m"],
     },
 
     {
       value: "U15F",
-      patterns: ["u15 feminin"],
+      patterns: ["u15 feminin", "u15 (feminin", "u15f"],
     },
 
     {
       value: "U15M",
-      patterns: ["u15 masculin"],
+      patterns: ["u15 masculin", "u15 (masculin", "u15m"],
     },
 
     {
       value: "U18F",
-      patterns: ["u18 feminin"],
+      patterns: ["u18 feminin", "u18 (feminin", "u18f"],
     },
 
     {
       value: "U18M",
-      patterns: ["u18 masculin"],
+      patterns: ["u18 masculin", "u18 (masculin", "u18m"],
     },
 
     {
       value: "SENIORS_F",
-      patterns: ["senior feminin"],
+      patterns: [
+        "senior feminin",
+        "seniors feminin",
+        "senior (feminin",
+        "sf (",
+        "sf ",
+      ],
     },
 
     {
       value: "SENIORS_M",
-      patterns: ["senior masculin"],
+      patterns: [
+        "senior masculin",
+        "seniors masculin",
+        "senior (masculin",
+        "sm (",
+        "sm ",
+      ],
     },
   ];
 
@@ -1427,42 +1446,77 @@ function writeObjectsToSheet(sheet, headers, rows) {
  * version AssoConnect d'une personne.
  */
 function selectBestAssoConnectImports(rows) {
-  const priorities = {
-    ATTENTE_VALIDATION: 1,
-
-    ATTENTE_PAIEMENT: 2,
-
-    VALIDE: 3,
-  };
-
-  const selected = {};
+  const selected = [];
 
   rows.forEach((row) => {
-    const key = buildAssoConnectPersonKey(row);
+    const existingIndex = selected.findIndex((current) =>
+      areAssoConnectRowsForSamePerson(current, row),
+    );
 
-    if (!key) {
+    if (existingIndex === -1) {
+      selected.push(row);
       return;
     }
 
-    const current = selected[key];
+    const current = selected[existingIndex];
 
-    if (!current) {
-      selected[key] = row;
-
-      return;
-    }
-
-    const currentPriority =
-      priorities[String(current.Source_statut).trim()] || 0;
-
-    const newPriority = priorities[String(row.Source_statut).trim()] || 0;
-
-    if (newPriority > currentPriority) {
-      selected[key] = row;
+    if (shouldPreferAssoConnectRow(row, current)) {
+      selected[existingIndex] = row;
     }
   });
 
-  return Object.values(selected);
+  return selected;
+}
+
+function areAssoConnectRowsForSamePerson(first, second) {
+  const firstAssoId = normalizeBusinessKey(first.Assoconnect_id);
+  const secondAssoId = normalizeBusinessKey(second.Assoconnect_id);
+
+  if (firstAssoId && secondAssoId) {
+    return firstAssoId === secondAssoId;
+  }
+
+  const firstIdentity = buildContactIdentityKey(first);
+  const secondIdentity = buildContactIdentityKey(second);
+
+  return Boolean(
+    firstIdentity && secondIdentity && firstIdentity === secondIdentity,
+  );
+}
+
+function shouldPreferAssoConnectRow(candidate, current) {
+  const priorities = {
+    ATTENTE_VALIDATION: 1,
+    ATTENTE_PAIEMENT: 2,
+    VALIDE: 3,
+  };
+
+  const candidatePriority =
+    priorities[
+      String(candidate.Source_statut || "")
+        .trim()
+        .toUpperCase()
+    ] || 0;
+  const currentPriority =
+    priorities[
+      String(current.Source_statut || "")
+        .trim()
+        .toUpperCase()
+    ] || 0;
+
+  if (candidatePriority !== currentPriority) {
+    return candidatePriority > currentPriority;
+  }
+
+  const candidateDate = String(candidate.Date_import || "").trim();
+  const currentDate = String(current.Date_import || "").trim();
+
+  if (candidateDate !== currentDate) {
+    return candidateDate > currentDate;
+  }
+
+  // À date identique, la ligne rencontrée en dernier est la plus récente.
+  return true;
 }
 
 /**
@@ -1471,31 +1525,17 @@ function selectBestAssoConnectImports(rows) {
  * les différents exports AssoConnect.
  */
 function buildAssoConnectPersonKey(row) {
-  /*
-   * L'ID AssoConnect n'existe pas
-   * forcément dans les exports
-   * non encore validés.
-   *
-   * On privilégie donc l'identité
-   * pour rapprocher les 3 exports.
-   */
-
-  const identityKey = buildContactIdentityKey(row);
-
-  if (identityKey) {
-    return "IDENTITY:" + identityKey;
-  }
-
   const assoId = normalizeBusinessKey(row.Assoconnect_id);
 
   if (assoId) {
     return "ASSO:" + assoId;
   }
 
-  /*
-   * Dernier recours :
-   * billet.
-   */
+  const identityKey = buildContactIdentityKey(row);
+
+  if (identityKey) {
+    return "IDENTITY:" + identityKey;
+  }
 
   const billet = normalizeBusinessKey(row.Numero_billet);
 
@@ -1700,19 +1740,53 @@ function initializeManualAdhesionFields(adhesion) {
  * n'est modifié ici.
  */
 function updateAdhesionFromAssoConnect(adhesion, imported) {
+  /*
+   * Ces champs sont gérés manuellement par le club.
+   * L'import AssoConnect ne doit jamais les modifier, même
+   * si la fonction évolue ensuite avec de nouveaux champs source.
+   */
+  const manualFields = [
+    "Paiement_hors_ligne_recu",
+    "Moyens_paiement_manuel",
+    "Montant_paiement_manuel_recu",
+    "AtoutSport_recu",
+    "PassSport_recu",
+    "Caution_arbitrage_statut",
+    "Cautions_arbitrage_recues",
+    "SportEasy_ok",
+    "SportEasy_equipe",
+    "Statut_adhesion",
+    "Licence_statut",
+    "Commentaire",
+  ];
+
+  const manualValues = {};
+  manualFields.forEach((field) => {
+    manualValues[field] = adhesion[field];
+  });
+
   adhesion.Assoconnect_billet = imported.Numero_billet || "";
 
   adhesion.Assoconnect_transaction = imported.Numero_transaction || "";
 
   adhesion.Statut_assoconnect = imported.Source_statut || "";
 
-  adhesion.Categorie = imported.Categorie || "";
+  // Une valeur vide ne doit pas effacer une information importée existante.
+  if (imported.Categorie) {
+    adhesion.Categorie = imported.Categorie;
+  }
 
-  adhesion.Montant_du = imported.Montant_du || "";
+  if (imported.Montant_du) {
+    adhesion.Montant_du = imported.Montant_du;
+  }
 
-  adhesion.Statut_paiement = imported.Statut_paiement || "";
+  if (imported.Statut_paiement) {
+    adhesion.Statut_paiement = imported.Statut_paiement;
+  }
 
-  adhesion.Moyen_paiement = imported.Moyen_paiement || "";
+  if (imported.Moyen_paiement) {
+    adhesion.Moyen_paiement = imported.Moyen_paiement;
+  }
 
   adhesion.AtoutSport_demande = imported.AtoutSport_demande || "Non";
 
@@ -1744,6 +1818,10 @@ function updateAdhesionFromAssoConnect(adhesion, imported) {
       : adhesion.Surmaillot_requis || "Non";
 
   adhesion.Surmaillot_commande = imported.Surmaillot_commande || "Non";
+
+  manualFields.forEach((field) => {
+    adhesion[field] = manualValues[field];
+  });
 
   adhesion.Date_maj = Utilities.formatDate(
     new Date(),

@@ -5425,14 +5425,20 @@
       adhesion.Statut_assoconnect === "VALIDE" ||
       adhesion.Paiement_hors_ligne_recu === "Oui";
 
-    let detail = adhesion.Moyen_paiement || "";
+    const details = [adhesion.Statut_paiement, adhesion.Moyen_paiement]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean);
 
     if (adhesion.Moyens_paiement_manuel) {
-      detail = String(adhesion.Moyens_paiement_manuel)
-        .split("|")
-        .map(formatPaymentMethod)
-        .join(" + ");
+      details.push(
+        String(adhesion.Moyens_paiement_manuel)
+          .split("|")
+          .map(formatPaymentMethod)
+          .join(" + "),
+      );
     }
+
+    const detail = Array.from(new Set(details)).join(" · ");
 
     return `
     <div class="adhesion-payment-cell">
