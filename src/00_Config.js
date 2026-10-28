@@ -68,6 +68,8 @@ const SHEETS = {
   MATCHS: "Matchs",
   AFFECTATIONS_MATCHS: "Affectations_matchs",
   ARBITRAGE: "Arbitrage",
+  OTM: "OTM",
+  OTM_EQUIPES: "OTM_Equipes",
   SAISONS: "Saisons",
   HISTORIQUE: "Historique",
 };

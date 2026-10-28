@@ -171,6 +171,10 @@
      * Chargement page Matchs.
      */
 
+    if (page === "otm") {
+      loadOtmModule();
+    }
+
     if (page === "matchs") {
       loadMatchsModule();
     }
@@ -777,8 +781,14 @@
     const email = document.getElementById("unauthorized-email");
 
     if (email) {
-      email.textContent = user.email || "";
+      email.textContent = user.email
+        ? "Compte détecté : " + user.email
+        : "Aucun compte Google n'a pu être identifié par l'application.";
     }
+  }
+
+  function openGoogleAccounts() {
+    window.open("https://accounts.google.com/", "_blank", "noopener");
   }
 
   function showUserError(error) {
@@ -6671,6 +6681,10 @@
 
   let matchsDetailOtm = [];
 
+  let matchsDetailAffectations = [];
+
+  let matchsDetailAffectationsDirty = false;
+
   let matchsDetailRequestToken = 0;
 
   /**
@@ -6713,6 +6727,10 @@
     matchsDetailArbitres = [];
 
     matchsDetailOtm = [];
+
+    matchsDetailAffectations = [];
+
+    matchsDetailAffectationsDirty = false;
 
     showMatchsDetailModal();
 
@@ -6878,6 +6896,10 @@
     matchsDetailArbitres = [];
 
     matchsDetailOtm = [];
+
+    matchsDetailAffectations = [];
+
+    matchsDetailAffectationsDirty = false;
   }
 
   /**
@@ -6969,6 +6991,12 @@
 
     const affectations = (detail && detail.affectations) || [];
 
+    if (!matchsDetailAffectationsDirty) {
+      matchsDetailAffectations = affectations.map((affectation) => ({
+        ...affectation,
+      }));
+    }
+
     const idInput = document.getElementById("matchs-detail-id");
 
     if (idInput) {
@@ -7009,7 +7037,7 @@
 
     setMatchsDetailValue("matchs-detail-responsable", match.Responsable_salle);
 
-    renderMatchsAffectationsLists(affectations);
+    renderMatchsAffectationsLists(matchsDetailAffectations);
 
     /*
      * Après chaque remplissage, on
@@ -7212,8 +7240,14 @@
 
         const affectationId = String(aff.Affectation_id || "").trim();
 
+        const personneId = String(aff.Personne_id || "").trim();
+
+        const role = String(aff.Role || "")
+          .trim()
+          .toUpperCase();
+
         removeButton.addEventListener("click", function () {
-          removeMatchAffectation(affectationId);
+          removeMatchAffectation(affectationId, personneId, role);
         });
 
         li.appendChild(removeButton);
@@ -7247,27 +7281,34 @@
 
     select.appendChild(placeholderOption);
 
-    (vivier || []).forEach(function (personne) {
-      const personneId = String(personne.Personne_id || "").trim();
+    [...(vivier || [])]
+      .sort((a, b) => {
+        const nameA = [a.Nom, a.Prenom].filter(Boolean).join(" ");
+        const nameB = [b.Nom, b.Prenom].filter(Boolean).join(" ");
 
-      if (!personneId) {
-        return;
-      }
+        return nameA.localeCompare(nameB, "fr", { sensitivity: "base" });
+      })
+      .forEach(function (personne) {
+        const personneId = String(personne.Personne_id || "").trim();
 
-      const option = document.createElement("option");
+        if (!personneId) {
+          return;
+        }
 
-      option.value = personneId;
+        const option = document.createElement("option");
 
-      const displayName = (
-        String(personne.Prenom || "").trim() +
-        " " +
-        String(personne.Nom || "").trim()
-      ).trim();
+        option.value = personneId;
 
-      option.textContent = displayName || personneId;
+        const displayName = (
+          String(personne.Prenom || "").trim() +
+          " " +
+          String(personne.Nom || "").trim()
+        ).trim();
 
-      select.appendChild(option);
-    });
+        option.textContent = displayName || personneId;
+
+        select.appendChild(option);
+      });
   }
 
   /**
@@ -7556,6 +7597,11 @@
       ).trim(),
     };
 
+    const assignments = matchsDetailAffectations.map((affectation) => ({
+      Personne_id: affectation.Personne_id,
+      Role: affectation.Role,
+    }));
+
     const saveButton = document.getElementById("matchs-detail-save");
 
     if (saveButton) {
@@ -7568,36 +7614,49 @@
 
     google.script.run
 
-      .withSuccessHandler(function (result) {
-        if (saveButton) {
-          saveButton.disabled = false;
+      .withSuccessHandler(function () {
+        google.script.run
+          .withSuccessHandler(function (affectationResult) {
+            if (saveButton) {
+              saveButton.disabled = false;
 
-          saveButton.textContent = "Enregistrer";
-        }
+              saveButton.textContent = "Enregistrer";
+            }
 
-        const action = (result && result.action) || "";
+            const action =
+              (affectationResult && affectationResult.action) || "";
 
-        if (action === "UNCHANGED") {
-          showMatchsDetailMessage("Aucune modification.", false);
+            showMatchsDetailMessage(
+              action === "UNCHANGED"
+                ? "Aucune modification."
+                : "Modifications enregistrées.",
+              false,
+            );
 
-          return;
-        }
+            matchsDetailAffectationsDirty = false;
+            matchsDetailRequestToken++;
 
-        showMatchsDetailMessage("Modifications enregistrées.", false);
+            if (matchsCurrentSaison) {
+              loadMatchs(matchsCurrentSaison);
+            }
 
-        /*
-         * Rafraîchit la liste principale
-         * pour refléter l'éventuel
-         * changement de date, catégorie
-         * ou lieu (badges, tri). Les
-         * compteurs d'affectations ne
-         * changent pas ici, mais la ligne
-         * doit être cohérente.
-         */
+            refreshMatchsDetail();
+          })
+          .withFailureHandler(function (error) {
+            if (saveButton) {
+              saveButton.disabled = false;
 
-        if (matchsCurrentSaison) {
-          loadMatchs(matchsCurrentSaison);
-        }
+              saveButton.textContent = "Enregistrer";
+            }
+
+            showMatchsDetailMessage(
+              "Les champs du match sont enregistrés, mais les affectations " +
+                "n'ont pas pu être sauvegardées : " +
+                (error.message || error),
+              true,
+            );
+          })
+          .saveMatchAffectations(matchId, assignments);
       })
 
       .withFailureHandler(function (error) {
@@ -7678,54 +7737,51 @@
       return;
     }
 
-    if (addButton) {
-      addButton.disabled = true;
+    const alreadyAssigned = matchsDetailAffectations.some(
+      (affectation) =>
+        String(affectation.Personne_id || "").trim() === personneId &&
+        String(affectation.Role || "")
+          .trim()
+          .toUpperCase() === role,
+    );
+
+    if (alreadyAssigned) {
+      showMatchsDetailMessage("Cette personne est déjà affectée.", true);
+
+      return;
     }
 
-    showMatchsDetailMessage("", false);
+    const vivier = role === "ARBITRE" ? matchsDetailArbitres : matchsDetailOtm;
 
-    google.script.run
+    const person = (vivier || []).find(
+      (item) => String(item.Personne_id || "").trim() === personneId,
+    );
 
-      .withSuccessHandler(function (result) {
-        if (addButton) {
-          addButton.disabled = false;
-        }
+    matchsDetailAffectations.push({
+      Affectation_id: "",
+      Personne_id: personneId,
+      Role: role,
+      DisplayName:
+        person?.DisplayName ||
+        [person?.Prenom, person?.Nom].filter(Boolean).join(" ") ||
+        personneId,
+      Categorie: person?.Categorie || "",
+      Equipe: person?.Equipe || person?.Equipe_sportive || "",
+      Licence_ffbb: person?.Licence_ffbb || "",
+    });
 
-        const action = (result && result.action) || "";
+    matchsDetailAffectationsDirty = true;
 
-        if (action === "ALREADY_EXISTS") {
-          showMatchsDetailMessage("Affectation déjà existante.", false);
-        } else {
-          showMatchsDetailMessage("Affectation enregistrée.", false);
-        }
+    renderMatchsAffectationsLists(matchsDetailAffectations);
 
-        refreshMatchsDetail();
+    if (select) {
+      select.value = "";
+    }
 
-        /*
-         * Rafraîchit aussi la liste
-         * principale pour mettre à jour
-         * les badges de comptage.
-         */
-
-        if (matchsCurrentSaison) {
-          loadMatchs(matchsCurrentSaison);
-        }
-      })
-
-      .withFailureHandler(function (error) {
-        if (addButton) {
-          addButton.disabled = false;
-        }
-
-        const message =
-          (error && error.message) ||
-          String(error) ||
-          "Une erreur est survenue.";
-
-        showMatchsDetailMessage(message, true);
-      })
-
-      .assignAffectation(matchId, personneId, role);
+    showMatchsDetailMessage(
+      "Affectation ajoutée. Cliquez sur Enregistrer pour sauvegarder.",
+      false,
+    );
   }
 
   /**
@@ -7737,53 +7793,44 @@
    * rafraîchie via
    * `refreshMatchsDetail()`.
    */
-  function removeMatchAffectation(affectationId) {
-    const matchId = String(matchsDetailCurrentId || "").trim();
-
-    const normalized = String(affectationId || "").trim();
-
-    if (!normalized) {
-      showMatchsDetailMessage("Affectation introuvable.", true);
-
+  function removeMatchAffectation(affectationId, personneId, role) {
+    if (!matchsIsEditor()) {
       return;
     }
 
-    if (!matchId) {
-      showMatchsDetailMessage("Match introuvable.", true);
+    const normalizedAffectationId = String(affectationId || "").trim();
+    const normalizedPersonneId = String(personneId || "").trim();
+    const normalizedRole = String(role || "")
+      .trim()
+      .toUpperCase();
 
-      return;
-    }
+    matchsDetailAffectations = matchsDetailAffectations.filter(
+      (affectation) => {
+        const sameId =
+          normalizedAffectationId &&
+          String(affectation.Affectation_id || "").trim() ===
+            normalizedAffectationId;
 
-    showMatchsDetailMessage("", false);
+        const sameKey =
+          normalizedPersonneId &&
+          String(affectation.Personne_id || "").trim() ===
+            normalizedPersonneId &&
+          String(affectation.Role || "")
+            .trim()
+            .toUpperCase() === normalizedRole;
 
-    google.script.run
+        return !sameId && !sameKey;
+      },
+    );
 
-      .withSuccessHandler(function (result) {
-        const action = (result && result.action) || "";
+    matchsDetailAffectationsDirty = true;
 
-        if (action === "ALREADY_ABSENT") {
-          showMatchsDetailMessage("Affectation déjà retirée.", false);
-        } else {
-          showMatchsDetailMessage("Affectation retirée.", false);
-        }
+    renderMatchsAffectationsLists(matchsDetailAffectations);
 
-        refreshMatchsDetail();
-
-        if (matchsCurrentSaison) {
-          loadMatchs(matchsCurrentSaison);
-        }
-      })
-
-      .withFailureHandler(function (error) {
-        const message =
-          (error && error.message) ||
-          String(error) ||
-          "Une erreur est survenue.";
-
-        showMatchsDetailMessage(message, true);
-      })
-
-      .removeAffectation(normalized);
+    showMatchsDetailMessage(
+      "Affectation retirée. Cliquez sur Enregistrer pour sauvegarder.",
+      false,
+    );
   }
 
   /**
@@ -7857,4 +7904,343 @@
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
   }
+  /* =========================
+   OTM
+   ========================= */
+
+  let otmData = [];
+  let otmEquipes = [];
+  let otmCurrentSaison = "";
+  let otmSaisonsLoaded = false;
+  let otmFormSubmitting = false;
+
+  function setOtmFormSubmitting(submitting) {
+    const form = document.getElementById("otm-form");
+    const submit = document.getElementById("otm-form-submit");
+
+    otmFormSubmitting = submitting;
+
+    if (form) {
+      form
+        .querySelectorAll("input, select, textarea, button")
+        .forEach((element) => {
+          element.disabled = submitting;
+        });
+    }
+
+    if (submit) {
+      submit.textContent = submitting ? "Enregistrement..." : "Enregistrer";
+      submit.classList.toggle("is-saving", submitting);
+    }
+  }
+
+  function otmIsEditor() {
+    return Boolean(
+      currentUser &&
+      (currentUser.role === "ADMIN" || currentUser.role === "BUREAU"),
+    );
+  }
+
+  function loadOtmModule() {
+    const addButton = document.getElementById("otm-add-button");
+    if (addButton) {
+      addButton.classList.toggle("hidden", !otmIsEditor());
+    }
+
+    if (otmSaisonsLoaded) {
+      loadOtms(otmCurrentSaison);
+      return;
+    }
+
+    showOtmLoading("Chargement des saisons...");
+
+    google.script.run
+      .withSuccessHandler(function (activeSaison) {
+        google.script.run
+          .withSuccessHandler(function (saisons) {
+            populateOtmSaisonSelect(saisons, activeSaison);
+            otmSaisonsLoaded = true;
+            loadOtms(otmCurrentSaison);
+          })
+          .withFailureHandler(showOtmError)
+          .listSaisons();
+      })
+      .withFailureHandler(showOtmError)
+      .getActiveSaison();
+  }
+
+  function populateOtmSaisonSelect(saisons, activeSaison) {
+    const select = document.getElementById("otm-saison-select");
+    if (!select) return;
+
+    select.innerHTML = "";
+    const list = Array.isArray(saisons) ? saisons : [];
+
+    list.forEach(function (saison) {
+      const option = document.createElement("option");
+      option.value = saison.Saison_id;
+      option.textContent = saison.Libelle || saison.Saison_id;
+      select.appendChild(option);
+    });
+
+    if (list.length === 0) {
+      otmCurrentSaison = "";
+      return;
+    }
+
+    const activeId =
+      activeSaison && activeSaison.Saison_id ? activeSaison.Saison_id : "";
+    otmCurrentSaison = list.some((saison) => saison.Saison_id === activeId)
+      ? activeId
+      : list[0].Saison_id;
+    select.value = otmCurrentSaison;
+  }
+
+  function onOtmSaisonChange() {
+    const select = document.getElementById("otm-saison-select");
+    otmCurrentSaison = select ? select.value : "";
+    loadOtms(otmCurrentSaison);
+  }
+
+  function loadOtms(saisonId) {
+    const normalized = String(saisonId || "").trim();
+    otmData = [];
+    otmEquipes = [];
+
+    if (!normalized) {
+      displayOtms([]);
+      return;
+    }
+
+    showOtmLoading("Chargement des OTM...");
+
+    google.script.run
+      .withSuccessHandler(function (otms) {
+        otmData = Array.isArray(otms) ? otms : [];
+        displayOtms(otmData);
+      })
+      .withFailureHandler(showOtmError)
+      .getOtm(normalized);
+
+    google.script.run
+      .withSuccessHandler(function (equipes) {
+        otmEquipes = Array.isArray(equipes) ? equipes : [];
+      })
+      .withFailureHandler(function () {
+        otmEquipes = [];
+      })
+      .listOtmEquipes(normalized);
+  }
+
+  function showOtmLoading(message) {
+    const loading = document.getElementById("otm-loading");
+    const list = document.getElementById("otm-list-card");
+    const empty = document.getElementById("otm-empty");
+    if (loading) {
+      loading.textContent = message || "Chargement...";
+      loading.style.display = "block";
+    }
+    if (list) list.style.display = "none";
+    if (empty) empty.style.display = "none";
+  }
+
+  function showOtmError(error) {
+    const message = document.getElementById("otm-message");
+    if (message) message.textContent = "Erreur : " + (error.message || error);
+    const loading = document.getElementById("otm-loading");
+    if (loading) loading.style.display = "none";
+  }
+
+  function displayOtms(otms) {
+    const loading = document.getElementById("otm-loading");
+    const list = document.getElementById("otm-list-card");
+    const empty = document.getElementById("otm-empty");
+    const summary = document.getElementById("otm-summary");
+    const container = document.getElementById("otm-table-container");
+    const message = document.getElementById("otm-message");
+
+    if (loading) loading.style.display = "none";
+    if (message) message.textContent = "";
+
+    if (!otms || otms.length === 0) {
+      if (list) list.style.display = "none";
+      if (empty) empty.style.display = "block";
+      return;
+    }
+
+    if (list) list.style.display = "block";
+    if (empty) empty.style.display = "none";
+    if (summary) {
+      summary.textContent =
+        otms.length +
+        " OTM" +
+        (otms.length > 1 ? "s" : "") +
+        " déclaré" +
+        (otms.length > 1 ? "s" : "") +
+        ".";
+    }
+
+    if (!container) return;
+    let html = `
+      <table class="otm-table">
+        <thead><tr>
+          <th>OTM</th><th>Licence FFBB</th><th>Équipe(s)</th><th>Actions</th>
+        </tr></thead><tbody>
+    `;
+
+    otms.forEach(function (otm, index) {
+      const equipes = Array.isArray(otm.Equipes)
+        ? otm.Equipes
+        : otm.Equipe
+          ? String(otm.Equipe).split(" • ")
+          : [];
+      const badges = equipes.length
+        ? equipes
+            .map(
+              (equipe) =>
+                `<span class="otm-team-badge">${escapeHtml(equipe)}</span>`,
+            )
+            .join("")
+        : "—";
+      const contact = [otm.Telephone, otm.Email]
+        .filter(Boolean)
+        .map(escapeHtml)
+        .join(" · ");
+      html += `
+        <tr>
+          <td><div class="otm-person-name">${escapeHtml([otm.Prenom, otm.Nom].filter(Boolean).join(" "))}</div>
+              <div class="otm-person-contact">${contact || "—"}</div>
+              <div class="otm-person-birth">Né(e) le ${escapeHtml(otm.Date_naissance || "—")}</div></td>
+          <td>${escapeHtml(otm.Licence_ffbb || "—")}</td>
+          <td>${badges}</td>
+          <td>${otmIsEditor() ? `<button type="button" class="secondary-button" onclick="openOtmModalByIndex(${index})">Modifier</button>` : ""}</td>
+        </tr>
+      `;
+    });
+
+    html += "</tbody></table>";
+    container.innerHTML = html;
+  }
+
+  function openOtmModalByIndex(index) {
+    openOtmModal(otmData[index] || null);
+  }
+
+  function openOtmModal(otm) {
+    if (!otmIsEditor()) return;
+
+    const overlay = document.getElementById("otm-modal-overlay");
+    const title = document.getElementById("otm-modal-title");
+    const error = document.getElementById("otm-form-error");
+    if (!overlay) return;
+
+    setOtmFormSubmitting(false);
+    title.textContent = otm ? "Modifier un OTM" : "Ajouter un OTM";
+    error.textContent = "";
+    document.getElementById("otm-form-id").value = otm ? otm.Otm_id || "" : "";
+    document.getElementById("otm-form-prenom").value = otm
+      ? otm.Prenom || ""
+      : "";
+    document.getElementById("otm-form-nom").value = otm ? otm.Nom || "" : "";
+    document.getElementById("otm-form-telephone").value = otm
+      ? otm.Telephone || ""
+      : "";
+    document.getElementById("otm-form-date-naissance").value = otm
+      ? otm.Date_naissance || ""
+      : "";
+    document.getElementById("otm-form-email").value = otm
+      ? otm.Email || ""
+      : "";
+    document.getElementById("otm-form-licence").value = otm
+      ? otm.Licence_ffbb || ""
+      : "";
+    renderOtmTeams(otm && Array.isArray(otm.Equipes) ? otm.Equipes : []);
+    overlay.classList.add("is-open");
+  }
+
+  function closeOtmModal() {
+    if (otmFormSubmitting) return;
+
+    const overlay = document.getElementById("otm-modal-overlay");
+    if (overlay) overlay.classList.remove("is-open");
+  }
+
+  function handleOtmOverlayClick(event) {
+    if (
+      !otmFormSubmitting &&
+      event.target &&
+      event.target.id === "otm-modal-overlay"
+    )
+      closeOtmModal();
+  }
+
+  function renderOtmTeams(selectedTeams) {
+    const container = document.getElementById("otm-form-teams");
+    if (!container) return;
+
+    const selected = new Set((selectedTeams || []).map((team) => String(team)));
+    const teams = otmEquipes.slice();
+
+    if (teams.length === 0) {
+      container.innerHTML =
+        '<span class="otm-form-help">Aucune équipe disponible.</span>';
+      return;
+    }
+
+    container.innerHTML = teams
+      .map(
+        (equipe, index) => `
+      <label class="otm-team-option">
+        <input type="checkbox" name="otm-equipe" value="${escapeHtml(equipe)}" ${selected.has(equipe) ? "checked" : ""} />
+        <span>${escapeHtml(equipe)}</span>
+      </label>
+    `,
+      )
+      .join("");
+  }
+
+  function saveOtmForm(event) {
+    event.preventDefault();
+    if (!otmIsEditor() || otmFormSubmitting) return;
+
+    const error = document.getElementById("otm-form-error");
+    const equipes = Array.from(
+      document.querySelectorAll('input[name="otm-equipe"]:checked'),
+    ).map((checkbox) => checkbox.value);
+    const payload = {
+      Otm_id: document.getElementById("otm-form-id").value,
+      Saison_id: otmCurrentSaison,
+      Prenom: document.getElementById("otm-form-prenom").value,
+      Nom: document.getElementById("otm-form-nom").value,
+      Telephone: document.getElementById("otm-form-telephone").value,
+      Date_naissance: document.getElementById("otm-form-date-naissance").value,
+      Email: document.getElementById("otm-form-email").value,
+      Licence_ffbb: document.getElementById("otm-form-licence").value,
+      Equipes: equipes,
+    };
+
+    setOtmFormSubmitting(true);
+    if (error) error.textContent = "";
+
+    google.script.run
+      .withSuccessHandler(function () {
+        setOtmFormSubmitting(false);
+        closeOtmModal();
+        loadOtms(otmCurrentSaison);
+      })
+      .withFailureHandler(function (failure) {
+        setOtmFormSubmitting(false);
+        if (error)
+          error.textContent =
+            failure.message || "Impossible d'enregistrer l'OTM.";
+      })
+      .saveOtm(payload);
+  }
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
+      const overlay = document.getElementById("otm-modal-overlay");
+      if (overlay && overlay.classList.contains("is-open")) closeOtmModal();
+    }
+  });
 </script>

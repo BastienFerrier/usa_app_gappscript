@@ -4428,6 +4428,8 @@ function syncFbiToAdhesions(saisonId) {
 
     let contactsLicenceAdded = 0;
 
+    let contactsLicenceUpdated = 0;
+
     let contactsLicenceUnchanged = 0;
 
     let licenceConflicts = 0;
@@ -4549,19 +4551,16 @@ function syncFbiToAdhesions(saisonId) {
           serializeHistoryValue(foundLicence),
         ]);
       } else if (
-        /*
-         * Une licence existe déjà.
-         *
-         * Si FBI retourne une licence
-         * différente, on n'écrase rien.
-         */
         foundLicence &&
         currentLicence &&
         foundLicence !== currentLicence
       ) {
-        licenceConflicts++;
+        const oldLicence = contact.Licence_ffbb || "";
 
-        targetStatus = "A_VERIFIER";
+        // FBI est la source de vérité : sa valeur remplace celle du contact.
+        contact.Licence_ffbb = foundLicence;
+
+        contactsLicenceUpdated++;
 
         historyRows.push([
           now,
@@ -4569,9 +4568,9 @@ function syncFbiToAdhesions(saisonId) {
           "ADHESIONS",
           "CONTACT",
           contact.Contact_id,
-          "ANOMALIE_FBI",
+          "SYNCHRONISATION_FBI",
           "Licence_ffbb",
-          serializeHistoryValue(currentLicence),
+          serializeHistoryValue(oldLicence),
           serializeHistoryValue(foundLicence),
         ]);
       } else if (
@@ -4714,6 +4713,8 @@ function syncFbiToAdhesions(saisonId) {
       adhesionsProcessed: adhesionsProcessed,
 
       contactsLicenceAdded: contactsLicenceAdded,
+
+      contactsLicenceUpdated: contactsLicenceUpdated,
 
       contactsLicenceUnchanged: contactsLicenceUnchanged,
 

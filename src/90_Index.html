@@ -88,6 +88,17 @@
 
           <button
             class="menu-item"
+            data-page="otm"
+            onclick="navigateTo('otm')"
+            title="OTM"
+          >
+            <span class="menu-icon"> ▤ </span>
+
+            <span class="menu-label"> OTM </span>
+          </button>
+
+          <button
+            class="menu-item"
             data-page="matchs"
             onclick="navigateTo('matchs')"
             title="Matchs"
@@ -169,10 +180,39 @@
 
             <div id="unauthorized-email" class="unauthorized-email"></div>
 
-            <p class="unauthorized-help">
-              Contactez un administrateur du club si vous pensez devoir disposer
-              d'un accès.
-            </p>
+            <div class="unauthorized-account-help">
+              <h2>Problème de compte Google ?</h2>
+
+              <p>
+                Si plusieurs comptes Google sont ouverts dans votre navigateur,
+                Google peut utiliser le mauvais compte. Ouvrez la gestion des
+                comptes, sélectionnez le bon compte, puis rechargez cette page.
+              </p>
+
+              <div class="unauthorized-actions">
+                <button
+                  type="button"
+                  class="primary-button"
+                  onclick="openGoogleAccounts()"
+                >
+                  Gérer mes comptes Google
+                </button>
+
+                <button
+                  type="button"
+                  class="secondary-button"
+                  onclick="window.location.reload()"
+                >
+                  Recharger l'application
+                </button>
+              </div>
+
+              <p class="unauthorized-help">
+                Si le problème persiste, essayez une fenêtre privée ou un profil
+                Chrome connecté uniquement avec le compte du club. L'application
+                ne peut pas déconnecter automatiquement vos comptes Google.
+              </p>
+            </div>
           </div>
         </section>
 
@@ -215,6 +255,10 @@
         <section id="page-arbitrage" class="app-page hidden">
           <?!= include("31_Arbitrage"); ?>
         </section>
+
+        <!-- OTM -->
+
+        <?!= include("51_OTM"); ?>
 
         <!-- MATCHS -->
 

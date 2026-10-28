@@ -1,0 +1,138 @@
+<section id="page-otm" class="app-page hidden">
+  <div class="otm-header">
+    <div>
+      <h1>OTM</h1>
+      <div class="otm-subtitle">
+        Gestion des officiels de table et de leurs équipes pour la saison.
+      </div>
+    </div>
+
+    <div class="otm-header-actions">
+      <div class="otm-saison">
+        <label for="otm-saison-select">Saison</label>
+        <select id="otm-saison-select" onchange="onOtmSaisonChange()"></select>
+      </div>
+      <button
+        id="otm-add-button"
+        type="button"
+        class="primary-button"
+        onclick="openOtmModal()"
+      >
+        Ajouter un OTM
+      </button>
+    </div>
+  </div>
+
+  <div id="otm-message" class="otm-message"></div>
+  <div id="otm-loading" class="otm-loading">Chargement...</div>
+
+  <div id="otm-list-card" class="otm-list-card" style="display: none">
+    <div id="otm-summary" class="otm-summary"></div>
+    <div id="otm-table-container" class="otm-table-container"></div>
+  </div>
+
+  <div id="otm-empty" class="otm-empty" style="display: none">
+    Aucun OTM déclaré pour la saison sélectionnée.
+  </div>
+
+  <div
+    id="otm-modal-overlay"
+    class="otm-modal-overlay"
+    onclick="handleOtmOverlayClick(event)"
+  >
+    <div
+      class="otm-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="otm-modal-title"
+    >
+      <div class="otm-modal-header">
+        <div>
+          <div class="otm-modal-eyebrow">Fiche OTM</div>
+          <h2 id="otm-modal-title">Ajouter un OTM</h2>
+        </div>
+        <button
+          type="button"
+          class="otm-modal-close"
+          onclick="closeOtmModal()"
+          aria-label="Fermer"
+        >
+          ×
+        </button>
+      </div>
+
+      <form id="otm-form" onsubmit="saveOtmForm(event)">
+        <input id="otm-form-id" type="hidden" />
+        <div class="otm-form-grid">
+          <div class="otm-form-field">
+            <label for="otm-form-prenom">Prénom *</label>
+            <input
+              id="otm-form-prenom"
+              type="text"
+              required
+              autocomplete="given-name"
+            />
+          </div>
+          <div class="otm-form-field">
+            <label for="otm-form-nom">Nom *</label>
+            <input
+              id="otm-form-nom"
+              type="text"
+              required
+              autocomplete="family-name"
+            />
+          </div>
+          <div class="otm-form-field">
+            <label for="otm-form-telephone">Téléphone *</label>
+            <input
+              id="otm-form-telephone"
+              type="tel"
+              required
+              autocomplete="tel"
+            />
+          </div>
+          <div class="otm-form-field">
+            <label for="otm-form-date-naissance">Date de naissance *</label>
+            <input id="otm-form-date-naissance" type="date" required />
+          </div>
+          <div class="otm-form-field">
+            <label for="otm-form-email">Email *</label>
+            <input
+              id="otm-form-email"
+              type="email"
+              required
+              autocomplete="email"
+            />
+          </div>
+          <div class="otm-form-field">
+            <label for="otm-form-licence">Licence FFBB</label>
+            <input id="otm-form-licence" type="text" />
+          </div>
+        </div>
+
+        <div class="otm-form-field otm-teams-field">
+          <label>Équipe(s) suivie(s)</label>
+          <div id="otm-form-teams" class="otm-teams-list"></div>
+          <div class="otm-form-help">
+            Catégories disponibles : U7, U9, U11F, U11M, U13F, U13M, U15F, U15M,
+            U18F, U18M, SF et SM.
+          </div>
+        </div>
+
+        <div id="otm-form-error" class="otm-form-error"></div>
+        <div class="otm-modal-footer">
+          <button
+            type="button"
+            class="secondary-button"
+            onclick="closeOtmModal()"
+          >
+            Annuler
+          </button>
+          <button id="otm-form-submit" type="submit" class="primary-button">
+            Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</section>

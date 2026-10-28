@@ -2011,10 +2011,208 @@ function assignAffectation(matchId, personneId, role) {
  *   { success: true, action: "DELETED" | "ALREADY_ABSENT", Affectation_id }
  */
 
-function removeAffectation(affectationId) {
+function saveMatchAffectations(matchId, assignments) {
   requireRole("ADMIN", "BUREAU");
 
-  const normalizedAffectationId = String(affectationId || "").trim();
+  const normalizedMatchId = String(matchId || "").trim();
+
+  if (!normalizedMatchId) {
+    throw new Error("Le Match_id est obligatoire.");
+  }
+
+  if (!Array.isArray(assignments)) {
+    throw new Error("La liste des affectations est invalide.");
+  }
+
+  const desired = assignments.map((assignment) => ({
+    Personne_id: String(assignment?.Personne_id || "").trim(),
+    Role: String(assignment?.Role || "")
+      .trim()
+      .toUpperCase(),
+  }));
+
+  const keys = new Set();
+
+  desired.forEach((assignment) => {
+    if (!assignment.Personne_id) {
+      throw new Error("Le Personne_id est obligatoire.");
+    }
+
+    if (!AFFECTATION_ROLES.includes(assignment.Role)) {
+      throw new Error("Rôle d'affectation invalide : " + assignment.Role);
+    }
+
+    const key = assignment.Personne_id + "|" + assignment.Role;
+
+    if (keys.has(key)) {
+      throw new Error("Affectation dupliquée : " + key);
+    }
+
+    keys.add(key);
+  });
+
+  const sportSpreadsheet = SpreadsheetApp.openById(SPREADSHEETS.SPORT);
+  const matchsSheet = getRequiredSheet(sportSpreadsheet, SHEETS.MATCHS);
+  const affectationsSheet = getRequiredSheet(
+    sportSpreadsheet,
+    SHEETS.AFFECTATIONS_MATCHS,
+  );
+  const lock = LockService.getScriptLock();
+
+  lock.waitLock(30000);
+
+  try {
+    const matchRow = readSheetAsObjects(matchsSheet).rows.find(
+      (row) => String(row.Match_id || "").trim() === normalizedMatchId,
+    );
+
+    if (!matchRow) {
+      throw new Error("Match introuvable : " + normalizedMatchId);
+    }
+
+    const saisonId = String(matchRow.Saison_id || "").trim();
+    const data = readSheetAsObjects(affectationsSheet);
+    const current = data.rows.filter(
+      (row) =>
+        String(row.Match_id || "").trim() === normalizedMatchId &&
+        String(row.Saison_id || "").trim() === saisonId,
+    );
+
+    const currentEditable = current.filter(
+      (row) =>
+        String(row.Role || "")
+          .trim()
+          .toUpperCase() !== "RESPONSABLE_SALLE",
+    );
+
+    desired.forEach((assignment) => {
+      assertPersonneDansVivier(
+        assignment.Personne_id,
+        assignment.Role,
+        saisonId,
+      );
+    });
+
+    const existingByKey = {};
+
+    currentEditable.forEach((row) => {
+      const key =
+        String(row.Personne_id || "").trim() +
+        "|" +
+        String(row.Role || "")
+          .trim()
+          .toUpperCase();
+
+      existingByKey[key] = row;
+    });
+
+    const currentKeys = new Set(Object.keys(existingByKey));
+    const unchanged =
+      currentKeys.size === keys.size &&
+      Array.from(currentKeys).every((key) => keys.has(key));
+
+    if (unchanged) {
+      return {
+        success: true,
+        action: "UNCHANGED",
+        Match_id: normalizedMatchId,
+        affectations: current,
+      };
+    }
+
+    const remaining = data.rows.filter(
+      (row) =>
+        !(
+          String(row.Match_id || "").trim() === normalizedMatchId &&
+          String(row.Saison_id || "").trim() === saisonId
+        ),
+    );
+
+    current
+      .filter(
+        (row) =>
+          String(row.Role || "")
+            .trim()
+            .toUpperCase() === "RESPONSABLE_SALLE",
+      )
+      .forEach((row) => remaining.push(row));
+
+    const nextIdRows = data.rows.concat();
+    const historyEntries = [];
+    const finalAffectations = [];
+
+    currentEditable.forEach((row) => {
+      const key =
+        String(row.Personne_id || "").trim() +
+        "|" +
+        String(row.Role || "")
+          .trim()
+          .toUpperCase();
+
+      if (!keys.has(key)) {
+        historyEntries.push({
+          objet: "AFFECTATION",
+          reference: row.Affectation_id,
+          action: "SUPPRESSION",
+          field: "Role",
+          oldValue: row.Role,
+          newValue: "",
+        });
+      }
+    });
+
+    desired.forEach((assignment) => {
+      const key = assignment.Personne_id + "|" + assignment.Role;
+      const existing = existingByKey[key];
+
+      if (existing) {
+        remaining.push(existing);
+        finalAffectations.push(existing);
+        return;
+      }
+
+      const affectationId = getNextAffectationId(nextIdRows);
+      const newRow = {
+        Affectation_id: affectationId,
+        Saison_id: saisonId,
+        Match_id: normalizedMatchId,
+        Personne_id: assignment.Personne_id,
+        Role: assignment.Role,
+        Date_maj: new Date(),
+      };
+
+      nextIdRows.push(newRow);
+      remaining.push(newRow);
+      finalAffectations.push(newRow);
+
+      historyEntries.push({
+        objet: "AFFECTATION",
+        reference: affectationId,
+        action: "CREATION",
+        field: "Role",
+        oldValue: "",
+        newValue: assignment.Role,
+      });
+    });
+
+    writeObjectsToSheet(affectationsSheet, data.headers, remaining);
+
+    if (historyEntries.length > 0) {
+      logHistorique(historyEntries);
+    }
+
+    return {
+      success: true,
+      action: "UPDATED",
+      Match_id: normalizedMatchId,
+      affectations: finalAffectations,
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+function removeAffectation(affectationId) {
+  requireRole("ADMIN", "BUREAU");
 
   if (!normalizedAffectationId) {
     throw new Error("L'Affectation_id est obligatoire.");
