@@ -678,6 +678,20 @@ function detectAssoConnectCategorie(source) {
     return matches[0].value;
   }
 
+  // Dernier recours : certaines versions d'export placent la catégorie
+  // dans un texte de prestation/formule au lieu d'une colonne dédiée.
+  for (const key of keys) {
+    if (!/(prestation|formule|offre|inscription|produit|adhesion)/i.test(key)) {
+      continue;
+    }
+
+    const category = detectAssoConnectCategorieValue(source[key], categories);
+
+    if (category) {
+      return category;
+    }
+  }
+
   return "";
 }
 
