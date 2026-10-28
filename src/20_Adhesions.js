@@ -813,16 +813,16 @@ function serializeAssoConnectValue(value) {
  * Importe réellement les exports
  * dans Import_Assoconnect.
  *
- * Les anciennes données de la saison
- * sont remplacées.
+ * Les données existantes des fichiers non sélectionnés sont conservées.
+ * Les lignes des fichiers sélectionnés sont remplacées par le nouvel import.
  */
 function importAssoConnect(saisonId, files) {
   requireRole("ADMIN", "BUREAU");
 
   const prepared = prepareAssoConnectImport(saisonId, files);
 
-  if (prepared.totalLignes === 0) {
-    throw new Error("Aucune ligne AssoConnect à importer.");
+  if (prepared.fichiers.length === 0) {
+    throw new Error("Aucun fichier AssoConnect à importer.");
   }
 
   const normalizedRows = prepared.lignes;
@@ -880,7 +880,16 @@ function importAssoConnect(saisonId, files) {
     }),
   );
 
-  deleteAssoConnectImportSeason(sheet, saisonId, sheetHeaders);
+  const selectedSourceNames = prepared.fichiers.map((file) =>
+    normalizeAssoConnectSourceName(file.name),
+  );
+
+  deleteAssoConnectImportSeason(
+    sheet,
+    saisonId,
+    sheetHeaders,
+    selectedSourceNames,
+  );
 
   if (values.length > 0) {
     sheet
@@ -902,16 +911,33 @@ function importAssoConnect(saisonId, files) {
 }
 
 /**
- * Supprime les anciennes données
- * Import_Assoconnect d'une saison.
+ * Supprime les anciennes lignes AssoConnect des sources
+ * sélectionnées pour une saison, sans toucher aux autres sources.
+ * Si aucune source n'est fournie, le comportement historique de
+ * remplacement complet de la saison est conservé.
  */
-function deleteAssoConnectImportSeason(sheet, saisonId, headers) {
+function deleteAssoConnectImportSeason(
+  sheet,
+  saisonId,
+  headers,
+  selectedSourceNames,
+) {
   const saisonColumn = headers.indexOf("Saison_id");
+  const sourceColumn = headers.indexOf("Source_fichier");
 
   if (saisonColumn === -1) {
     throw new Error("Colonne Saison_id introuvable.");
   }
 
+  if (sourceColumn === -1) {
+    throw new Error("Colonne Source_fichier introuvable.");
+  }
+
+  const selectedSources = new Set(
+    (selectedSourceNames || []).map(normalizeAssoConnectSourceName),
+  );
+  const isPartialImport = selectedSources.size > 0;
+  const normalizedSaisonId = String(saisonId).trim();
   const lastRow = sheet.getLastRow();
 
   if (lastRow <= 1) {
@@ -920,9 +946,20 @@ function deleteAssoConnectImportSeason(sheet, saisonId, headers) {
 
   const values = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
 
-  const remainingRows = values.filter(
-    (row) => String(row[saisonColumn]).trim() !== String(saisonId).trim(),
-  );
+  const remainingRows = values.filter((row) => {
+    const sameSeason = String(row[saisonColumn]).trim() === normalizedSaisonId;
+
+    if (!sameSeason) {
+      return true;
+    }
+
+    if (!isPartialImport) {
+      return false;
+    }
+
+    const sourceName = normalizeAssoConnectSourceName(row[sourceColumn]);
+    return !selectedSources.has(sourceName);
+  });
 
   sheet.getRange(2, 1, lastRow - 1, headers.length).clearContent();
 
@@ -931,6 +968,12 @@ function deleteAssoConnectImportSeason(sheet, saisonId, headers) {
       .getRange(2, 1, remainingRows.length, headers.length)
       .setValues(remainingRows);
   }
+}
+
+function normalizeAssoConnectSourceName(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
 /**
@@ -1253,11 +1296,13 @@ function ensureAdhesionStatusColumn(sheet) {
     .map((value) => String(value).trim());
 
   let statusColumn = headers.indexOf("Statut_adhesion");
+  let changed = false;
 
   if (statusColumn === -1) {
     statusColumn = headers.length;
 
     sheet.getRange(1, statusColumn + 1).setValue("Statut_adhesion");
+    changed = true;
   }
 
   const lastRow = sheet.getLastRow();
@@ -1266,8 +1311,6 @@ function ensureAdhesionStatusColumn(sheet) {
     const range = sheet.getRange(2, statusColumn + 1, lastRow - 1, 1);
 
     const values = range.getValues();
-
-    let changed = false;
 
     values.forEach((row) => {
       if (!String(row[0] || "").trim()) {
@@ -1282,7 +1325,9 @@ function ensureAdhesionStatusColumn(sheet) {
     }
   }
 
-  SpreadsheetApp.flush();
+  if (changed) {
+    SpreadsheetApp.flush();
+  }
 
   return {
     statusColumn: statusColumn,
@@ -2436,40 +2481,64 @@ function setAdhesionStatus(adhesionId, status) {
       throw new Error("L'onglet Adhesions est introuvable.");
     }
 
-    ensureAdhesionStatusColumn(sheet);
+    const lastColumn = sheet.getLastColumn();
 
-    const values = sheet.getDataRange().getValues();
-
-    if (values.length < 2) {
-      throw new Error("Aucune adhésion disponible.");
+    if (lastColumn === 0) {
+      throw new Error("L'onglet Adhesions ne contient aucun en-tête.");
     }
 
-    const headers = values[0].map((header) => String(header).trim());
+    let headers = sheet
+      .getRange(1, 1, 1, lastColumn)
+      .getValues()[0]
+      .map((header) => String(header).trim());
 
-    const adhesionIdIndex = headers.indexOf("Adhesion_id");
+    let adhesionIdIndex = headers.indexOf("Adhesion_id");
+    let statusIndex = headers.indexOf("Statut_adhesion");
 
-    const statusIndex = headers.indexOf("Statut_adhesion");
+    if (adhesionIdIndex === -1 || statusIndex === -1) {
+      ensureAdhesionStatusColumn(sheet);
+
+      headers = sheet
+        .getRange(1, 1, 1, sheet.getLastColumn())
+        .getValues()[0]
+        .map((header) => String(header).trim());
+
+      adhesionIdIndex = headers.indexOf("Adhesion_id");
+      statusIndex = headers.indexOf("Statut_adhesion");
+    }
 
     if (adhesionIdIndex === -1 || statusIndex === -1) {
       throw new Error("Colonnes d'adhésion obligatoires introuvables.");
     }
 
-    let rowIndex = -1;
+    const adhesionColumn = sheet.getRange(
+      2,
+      adhesionIdIndex + 1,
+      Math.max(sheet.getLastRow() - 1, 1),
+      1,
+    );
+    const matches = adhesionColumn
+      .createTextFinder(normalizedAdhesionId)
+      .matchEntireCell(true)
+      .findAll();
 
-    for (let i = 1; i < values.length; i++) {
-      if (String(values[i][adhesionIdIndex]).trim() === normalizedAdhesionId) {
-        rowIndex = i;
-
-        break;
-      }
-    }
-
-    if (rowIndex === -1) {
+    if (matches.length === 0) {
       throw new Error("Adhésion introuvable : " + normalizedAdhesionId);
     }
 
+    if (matches.length > 1) {
+      throw new Error(
+        "Plusieurs adhésions utilisent l'identifiant " +
+          normalizedAdhesionId +
+          ".",
+      );
+    }
+
+    const rowNumber = matches[0].getRow();
     const oldStatus =
-      String(values[rowIndex][statusIndex] || "").trim() || "ACTIVE";
+      String(
+        sheet.getRange(rowNumber, statusIndex + 1).getValue() || "",
+      ).trim() || "ACTIVE";
 
     if (oldStatus === normalizedStatus) {
       return {
@@ -2480,14 +2549,14 @@ function setAdhesionStatus(adhesionId, status) {
       };
     }
 
-    sheet.getRange(rowIndex + 1, statusIndex + 1).setValue(normalizedStatus);
+    sheet.getRange(rowNumber, statusIndex + 1).setValue(normalizedStatus);
 
     const dateMajIndex = headers.indexOf("Date_maj");
 
     const now = new Date();
 
     if (dateMajIndex !== -1) {
-      sheet.getRange(rowIndex + 1, dateMajIndex + 1).setValue(now);
+      sheet.getRange(rowNumber, dateMajIndex + 1).setValue(now);
     }
 
     writeAdhesionHistory(
