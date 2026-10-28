@@ -605,98 +605,94 @@ function normalizeAssoConnectRow(
  */
 function detectAssoConnectCategorie(source) {
   const categories = [
-    {
-      value: "U7",
-      patterns: ["u7 (", "u7 ", "u7"],
-    },
-
-    {
-      value: "U9",
-      patterns: ["u9 (", "u9 ", "u9"],
-    },
-
+    { value: "U7", patterns: [/\bu7\b/] },
+    { value: "U9", patterns: [/\bu9\b/] },
     {
       value: "U11F",
-      patterns: ["u11 feminin", "u11 (feminin", "u11f"],
+      patterns: [/\bu11\s*\(?\s*feminin\b/, /\bu11f\b/],
     },
-
     {
       value: "U11M",
-      patterns: ["u11 masculin", "u11 (masculin", "u11m"],
+      patterns: [/\bu11\s*\(?\s*masculin\b/, /\bu11m\b/],
     },
-
     {
       value: "U13F",
-      patterns: ["u13 feminin", "u13 (feminin", "u13f"],
+      patterns: [/\bu13\s*\(?\s*feminin\b/, /\bu13f\b/],
     },
-
     {
       value: "U13M",
-      patterns: ["u13 masculin", "u13 (masculin", "u13m"],
+      patterns: [/\bu13\s*\(?\s*masculin\b/, /\bu13m\b/],
     },
-
     {
       value: "U15F",
-      patterns: ["u15 feminin", "u15 (feminin", "u15f"],
+      patterns: [/\bu15\s*\(?\s*feminin\b/, /\bu15f\b/],
     },
-
     {
       value: "U15M",
-      patterns: ["u15 masculin", "u15 (masculin", "u15m"],
+      patterns: [/\bu15\s*\(?\s*masculin\b/, /\bu15m\b/],
     },
-
     {
       value: "U18F",
-      patterns: ["u18 feminin", "u18 (feminin", "u18f"],
+      patterns: [/\bu18\s*\(?\s*feminin\b/, /\bu18f\b/],
     },
-
     {
       value: "U18M",
-      patterns: ["u18 masculin", "u18 (masculin", "u18m"],
+      patterns: [/\bu18\s*\(?\s*masculin\b/, /\bu18m\b/],
     },
-
     {
       value: "SENIORS_F",
-      patterns: [
-        "senior feminin",
-        "seniors feminin",
-        "senior (feminin",
-        "sf (",
-        "sf ",
-      ],
+      patterns: [/\bseniors?\s*\(?\s*feminin\b/, /\bsf\b/],
     },
-
     {
       value: "SENIORS_M",
-      patterns: [
-        "senior masculin",
-        "seniors masculin",
-        "senior (masculin",
-        "sm (",
-        "sm ",
-      ],
+      patterns: [/\bseniors?\s*\(?\s*masculin\b/, /\bsm\b/],
     },
   ];
 
   const keys = Object.keys(source);
 
-  for (let i = 0; i < categories.length; i++) {
-    const categorie = categories[i];
+  // Priorité à une colonne explicite « Catégorie » ou « Équipe ».
+  for (const key of keys) {
+    if (!/(categorie|catégorie|equipe|équipe)/i.test(key)) {
+      continue;
+    }
 
-    for (let j = 0; j < keys.length; j++) {
-      const key = keys[j];
+    const category = detectAssoConnectCategorieValue(source[key], categories);
 
-      const matches = categorie.patterns.some((pattern) =>
-        key.includes(pattern),
-      );
-
-      if (matches && isAssoConnectSelected(source[key])) {
-        return categorie.value;
-      }
+    if (category) {
+      return category;
     }
   }
 
+  // Sinon, traite uniquement les colonnes correspondant à une catégorie
+  // unique. Une colonne ambiguë « U7 / U9 » est volontairement ignorée.
+  for (const key of keys) {
+    const matches = categories.filter((category) =>
+      category.patterns.some((pattern) => pattern.test(key)),
+    );
+
+    if (matches.length !== 1 || !isAssoConnectSelected(source[key])) {
+      continue;
+    }
+
+    return matches[0].value;
+  }
+
   return "";
+}
+
+function detectAssoConnectCategorieValue(value, categories) {
+  const normalized = normalizeAssoConnectHeader(value);
+
+  if (!normalized) {
+    return "";
+  }
+
+  const matches = categories.filter((category) =>
+    category.patterns.some((pattern) => pattern.test(normalized)),
+  );
+
+  return matches.length === 1 ? matches[0].value : "";
 }
 
 /**
