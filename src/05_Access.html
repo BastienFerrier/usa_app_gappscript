@@ -65,15 +65,26 @@
         </div>
 
         <div class="form-field">
-          <label for="access-role"> Rôle </label>
+          <label> Groupes de permissions </label>
 
-          <select id="access-role">
-            <option value="COACH">Coach</option>
-
-            <option value="BUREAU">Bureau</option>
-
-            <option value="ADMIN">Administrateur</option>
-          </select>
+          <div id="access-groups" class="access-groups-list">
+            <label class="checkbox-field">
+              <input type="checkbox" value="ADMIN" />
+              <span>Administrateur</span>
+            </label>
+            <label class="checkbox-field">
+              <input type="checkbox" value="COACH" />
+              <span>Coach</span>
+            </label>
+            <label class="checkbox-field">
+              <input type="checkbox" value="COORDINATION_OTM" />
+              <span>Coordination OTM</span>
+            </label>
+            <label class="checkbox-field">
+              <input type="checkbox" value="COORDINATION_ARBITRAGE" />
+              <span>Coordination arbitrage</span>
+            </label>
+          </div>
         </div>
 
         <label class="checkbox-field">

@@ -89,18 +89,25 @@
      * La page Accès est réservée
      * aux administrateurs.
      */
-    if (page === "access" && (!currentUser || currentUser.role !== "ADMIN")) {
+    if (page === "access" && !currentUserHasPermission("ACCESS")) {
       return;
     }
 
     if (
       page === "communication" &&
-      (!currentUser || currentUser.role !== "ADMIN")
+      !currentUserHasPermission("COMMUNICATION")
     ) {
       return;
     }
 
-    if (page === "imports" && (!currentUser || currentUser.role !== "ADMIN")) {
+    if (
+      page === "imports" &&
+      !currentUserHasAnyPermission(
+        "IMPORT_FBI_LICENCES",
+        "IMPORT_MATCH",
+        "IMPORT_ASSOCONNECT",
+      )
+    ) {
       return;
     }
 
@@ -658,6 +665,12 @@
 
   let currentUser = null;
 
+  function currentUserHasAnyPermission(...permissions) {
+    return permissions.some((permission) =>
+      currentUserHasPermission(permission),
+    );
+  }
+
   google.script.run
 
     .withSuccessHandler(initializeUser)
@@ -695,19 +708,26 @@
 
     const accessMenu = document.getElementById("menu-access");
 
-    if (accessMenu && user.role === "ADMIN") {
+    if (accessMenu && currentUserHasPermission("ACCESS")) {
       accessMenu.classList.remove("hidden");
     }
 
     const communicationMenu = document.getElementById("menu-communication");
 
-    if (communicationMenu && user.role === "ADMIN") {
+    if (communicationMenu && currentUserHasPermission("COMMUNICATION")) {
       communicationMenu.classList.remove("hidden");
     }
 
     const importsMenu = document.getElementById("menu-imports");
 
-    if (importsMenu && user.role === "ADMIN") {
+    if (
+      importsMenu &&
+      currentUserHasAnyPermission(
+        "IMPORT_FBI_LICENCES",
+        "IMPORT_MATCH",
+        "IMPORT_ASSOCONNECT",
+      )
+    ) {
       importsMenu.classList.remove("hidden");
     }
   }
@@ -843,7 +863,7 @@
           </th>
 
           <th>
-            Rôle
+            Groupes
           </th>
 
           <th>
@@ -864,7 +884,16 @@
   `;
 
     users.forEach((user) => {
-      const roleClass = "role-" + user.role.toLowerCase();
+      const groups = Array.isArray(user.groupes) ? user.groupes : [];
+
+      const groupsHtml = groups.length
+        ? groups
+            .map(
+              (group) =>
+                `<span class="role-badge role-${group.toLowerCase()}">${escapeHtml(group)}</span>`,
+            )
+            .join(" ")
+        : "—";
 
       const statusClass = user.actif ? "status-active" : "status-inactive";
 
@@ -888,13 +917,7 @@
 
 
         <td>
-
-          <span
-            class="role-badge ${roleClass}"
-          >
-            ${user.role}
-          </span>
-
+          ${groupsHtml}
         </td>
 
 
@@ -938,6 +961,22 @@
     accessUsersLoaded = true;
   }
 
+  function setAccessGroupCheckboxes(groups) {
+    const selected = new Set(groups || []);
+
+    document
+      .querySelectorAll("#access-groups input[type=checkbox]")
+      .forEach((checkbox) => {
+        checkbox.checked = selected.has(checkbox.value);
+      });
+  }
+
+  function getAccessGroupCheckboxes() {
+    return Array.from(
+      document.querySelectorAll("#access-groups input[type=checkbox]:checked"),
+    ).map((checkbox) => checkbox.value);
+  }
+
   function openAccessModal(user = null) {
     const modal = document.getElementById("access-modal");
 
@@ -967,7 +1006,7 @@
 
       email.disabled = true;
 
-      document.getElementById("access-role").value = user.role;
+      setAccessGroupCheckboxes(user.groupes || []);
 
       document.getElementById("access-actif").checked = user.actif;
     } else {
@@ -981,7 +1020,7 @@
 
       email.disabled = false;
 
-      document.getElementById("access-role").value = "COACH";
+      setAccessGroupCheckboxes(["COACH"]);
 
       document.getElementById("access-actif").checked = true;
     }
@@ -1007,8 +1046,7 @@
 
       email: document.getElementById("access-email").value,
 
-      role: document.getElementById("access-role").value,
-
+      groupes: getAccessGroupCheckboxes(),
       actif: document.getElementById("access-actif").checked,
     };
 
@@ -1073,7 +1111,7 @@
   let communicationCurrentSaison = "";
 
   function loadCommunication() {
-    if (!currentUser || currentUser.role !== "ADMIN") {
+    if (!currentUserHasPermission("COMMUNICATION")) {
       return;
     }
 
@@ -1278,7 +1316,13 @@
   let adminImportCurrentSaison = "";
 
   function loadAdminImports() {
-    if (!currentUser || currentUser.role !== "ADMIN") {
+    if (
+      !currentUserHasAnyPermission(
+        "IMPORT_FBI_LICENCES",
+        "IMPORT_MATCH",
+        "IMPORT_ASSOCONNECT",
+      )
+    ) {
       return;
     }
 
@@ -5708,10 +5752,7 @@
    * 9.5).
    */
   function matchsIsEditor() {
-    return Boolean(
-      currentUser &&
-      (currentUser.role === "ADMIN" || currentUser.role === "BUREAU"),
-    );
+    return currentUserHasPermission("MATCHS_WRITE");
   }
 
   /**
@@ -8171,10 +8212,7 @@
   }
 
   function otmIsEditor() {
-    return Boolean(
-      currentUser &&
-      (currentUser.role === "ADMIN" || currentUser.role === "BUREAU"),
-    );
+    return currentUserHasPermission("OTM_WRITE");
   }
 
   function loadOtmModule() {

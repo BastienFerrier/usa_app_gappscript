@@ -1,505 +1,434 @@
-/**
- * Rôles autorisés dans l'application.
- */
-const ACCESS_ROLES = ["ADMIN", "BUREAU", "COACH"];
+const ACCESS_USER_HEADERS = [
+  "Utilisateur_id",
+  "Email",
+  "Nom",
+  "Prenom",
+  "Role",
+  "Actif",
+  "Date_maj",
+];
 
-/**
- * Retourne la liste des utilisateurs
- * de l'application.
- *
- * Réservé aux administrateurs.
- */
+function ensureAccessGroupsSheet() {
+  const spreadsheet = getSpreadsheet("ADMINISTRATION");
+  let sheet = spreadsheet.getSheetByName(SHEETS.UTILISATEURS_GROUPES);
+
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(SHEETS.UTILISATEURS_GROUPES);
+    sheet
+      .getRange(1, 1, 1, ACCESS_GROUP_SHEET_HEADERS.length)
+      .setValues([ACCESS_GROUP_SHEET_HEADERS]);
+  }
+
+  return sheet;
+}
+
+function ensureAccessUsersColumns(sheet) {
+  const lastColumn = sheet.getLastColumn();
+
+  if (lastColumn === 0) {
+    throw new Error("L'onglet Utilisateurs ne contient aucun en-tête.");
+  }
+
+  let headers = sheet
+    .getRange(1, 1, 1, lastColumn)
+    .getValues()[0]
+    .map((value) => String(value).trim());
+
+  const missingHeaders = ACCESS_USER_HEADERS.filter(
+    (header) => !headers.includes(header),
+  );
+
+  if (missingHeaders.length > 0) {
+    sheet
+      .getRange(1, headers.length + 1, 1, missingHeaders.length)
+      .setValues([missingHeaders]);
+    headers = headers.concat(missingHeaders);
+  }
+
+  const idColumn = headers.indexOf("Utilisateur_id");
+  const dateColumn = headers.indexOf("Date_maj");
+  const data = readSheetAsObjects(sheet);
+  let nextNumber = getNextAccessUserNumber(data.rows);
+  let changed = false;
+
+  data.rows.forEach((row) => {
+    if (!String(row.Utilisateur_id || "").trim()) {
+      row.Utilisateur_id = "USR-" + String(nextNumber++).padStart(6, "0");
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    writeObjectsToSheet(sheet, headers, data.rows);
+  }
+
+  return {
+    headers: headers,
+    rows: data.rows,
+    idColumn: idColumn,
+    dateColumn: dateColumn,
+  };
+}
+
+function getNextAccessUserNumber(rows) {
+  let max = 0;
+
+  rows.forEach((row) => {
+    const match = String(row.Utilisateur_id || "")
+      .trim()
+      .match(/^USR-(\d+)$/);
+
+    if (match) {
+      max = Math.max(max, Number(match[1]));
+    }
+  });
+
+  return max + 1;
+}
+
+function getNextAccessGroupNumber(rows) {
+  let max = 0;
+
+  rows.forEach((row) => {
+    const match = String(row.Utilisateur_groupe_id || "")
+      .trim()
+      .match(/^USRGRP-(\d+)$/);
+
+    if (match) {
+      max = Math.max(max, Number(match[1]));
+    }
+  });
+
+  return max + 1;
+}
+
 function getAccessUsers() {
-  requireRole("ADMIN");
+  requirePermission("ACCESS");
 
-  const utilisateurs = getSheetData("ADMINISTRATION", "Utilisateurs");
+  const spreadsheet = getSpreadsheet("ADMINISTRATION");
+  const usersSheet = spreadsheet.getSheetByName("Utilisateurs");
 
-  return utilisateurs
-    .map((item) => ({
-      email: item["Email"] ? item["Email"].toString().trim().toLowerCase() : "",
+  if (!usersSheet) {
+    throw new Error("Onglet Utilisateurs introuvable.");
+  }
 
-      nom: item["Nom"] ? item["Nom"].toString().trim() : "",
+  const usersData = ensureAccessUsersColumns(usersSheet);
+  const groupsSheet = ensureAccessGroupsSheet();
+  const groupsData = readSheetAsObjects(groupsSheet).rows;
+  const groupsByUserId = {};
 
-      prenom: item["Prenom"] ? item["Prenom"].toString().trim() : "",
+  groupsData.forEach((row) => {
+    const userId = String(row.Utilisateur_id || "").trim();
+    const group = String(row.Groupe_code || "")
+      .trim()
+      .toUpperCase();
+    const actif =
+      String(row.Actif || "")
+        .trim()
+        .toLowerCase() === "oui";
 
-      role: item["Role"] ? item["Role"].toString().trim().toUpperCase() : "",
+    if (!userId || !actif || !ACCESS_GROUPS.includes(group)) {
+      return;
+    }
 
-      actif: item["Actif"]
-        ? item["Actif"].toString().trim().toLowerCase() === "oui"
-        : false,
-    }))
+    if (!groupsByUserId[userId]) {
+      groupsByUserId[userId] = [];
+    }
+
+    if (!groupsByUserId[userId].includes(group)) {
+      groupsByUserId[userId].push(group);
+    }
+  });
+
+  return usersData.rows
+    .map((item) => {
+      const groups =
+        groupsByUserId[String(item.Utilisateur_id || "").trim()] ||
+        (ACCESS_GROUPS.includes(
+          String(item.Role || "")
+            .trim()
+            .toUpperCase(),
+        )
+          ? [String(item.Role).trim().toUpperCase()]
+          : []);
+
+      return {
+        utilisateurId: String(item.Utilisateur_id || "").trim(),
+        email: String(item.Email || "")
+          .trim()
+          .toLowerCase(),
+        nom: String(item.Nom || "").trim(),
+        prenom: String(item.Prenom || "").trim(),
+        role:
+          groups[0] ||
+          String(item.Role || "")
+            .trim()
+            .toUpperCase(),
+        groupes: groups,
+        permissions: getPermissionsForGroups(groups),
+        actif:
+          String(item.Actif || "")
+            .trim()
+            .toLowerCase() === "oui",
+      };
+    })
     .sort((a, b) =>
       (a.prenom + " " + a.nom).localeCompare(b.prenom + " " + b.nom),
     );
 }
 
-/**
- * Ajoute ou modifie un utilisateur.
- *
- * data :
- * {
- *   email: "...",
- *   nom: "...",
- *   prenom: "...",
- *   role: "COACH",
- *   actif: true
- * }
- */
 function saveAccessUser(data) {
-  requireRole("ADMIN");
-
-  /*
-   * Validation données reçues
-   */
+  requirePermission("ACCESS");
 
   if (!data) {
     throw new Error("Aucune donnée utilisateur reçue.");
   }
 
-  const email = data.email ? data.email.toString().trim().toLowerCase() : "";
-
-  const nom = data.nom ? data.nom.toString().trim() : "";
-
-  const prenom = data.prenom ? data.prenom.toString().trim() : "";
-
-  const role = data.role ? data.role.toString().trim().toUpperCase() : "";
-
+  const email = String(data.email || "")
+    .trim()
+    .toLowerCase();
+  const nom = String(data.nom || "").trim();
+  const prenom = String(data.prenom || "").trim();
   const actif = data.actif === true;
+  const groupes = Array.isArray(data.groupes)
+    ? Array.from(
+        new Set(
+          data.groupes
+            .map((group) =>
+              String(group || "")
+                .trim()
+                .toUpperCase(),
+            )
+            .filter(Boolean),
+        ),
+      )
+    : data.role
+      ? [String(data.role).trim().toUpperCase()]
+      : [];
 
-  /*
-   * Protection du compte
-   * administrateur connecté.
-   *
-   * Un administrateur ne peut pas
-   * se retirer lui-même ses droits.
-   */
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("L'adresse email n'est pas valide.");
+  }
+
+  if (!prenom || !nom) {
+    throw new Error("Le prénom et le nom sont obligatoires.");
+  }
+
+  const invalidGroups = groupes.filter(
+    (group) => !ACCESS_GROUPS.includes(group),
+  );
+
+  if (invalidGroups.length > 0) {
+    throw new Error(
+      "Groupe utilisateur invalide : " + invalidGroups.join(", "),
+    );
+  }
+
   const currentUser = getCurrentUser();
-
-  if (email === currentUser.email && (role !== "ADMIN" || !actif)) {
+  if (email === currentUser.email && (!actif || !groupes.includes("ADMIN"))) {
     throw new Error(
       "Vous ne pouvez pas retirer vos propres droits administrateur.",
     );
   }
-  /*
-   * Email obligatoire
-   */
-
-  if (!email) {
-    throw new Error("L'adresse email est obligatoire.");
-  }
-
-  /*
-   * Validation simple de l'email
-   */
-
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  if (!emailPattern.test(email)) {
-    throw new Error("L'adresse email n'est pas valide.");
-  }
-
-  /*
-   * Prénom / nom
-   */
-
-  if (!prenom) {
-    throw new Error("Le prénom est obligatoire.");
-  }
-
-  if (!nom) {
-    throw new Error("Le nom est obligatoire.");
-  }
-
-  /*
-   * Rôle
-   */
-
-  if (!ACCESS_ROLES.includes(role)) {
-    throw new Error("Rôle utilisateur invalide.");
-  }
-
-  /*
-   * Accès au Sheet
-   */
 
   const spreadsheet = getSpreadsheet("ADMINISTRATION");
+  const usersSheet = spreadsheet.getSheetByName("Utilisateurs");
 
-  const sheet = spreadsheet.getSheetByName("Utilisateurs");
-
-  if (!sheet) {
+  if (!usersSheet) {
     throw new Error("Onglet Utilisateurs introuvable.");
   }
 
-  const dataRange = sheet.getDataRange().getValues();
+  const usersData = ensureAccessUsersColumns(usersSheet);
+  let user = usersData.rows.find(
+    (row) =>
+      String(row.Email || "")
+        .trim()
+        .toLowerCase() === email,
+  );
 
-  if (dataRange.length === 0) {
-    throw new Error("L'onglet Utilisateurs est vide.");
+  if (!user) {
+    user = {
+      Utilisateur_id:
+        "USR-" +
+        String(getNextAccessUserNumber(usersData.rows)).padStart(6, "0"),
+      Email: email,
+    };
+    usersData.rows.push(user);
   }
 
-  const headers = dataRange[0];
+  user.Nom = nom;
+  user.Prenom = prenom;
+  user.Actif = actif ? "Oui" : "Non";
+  user.Date_maj = new Date();
 
-  const emailColumn = headers.indexOf("Email");
+  writeObjectsToSheet(usersSheet, usersData.headers, usersData.rows);
 
-  const nomColumn = headers.indexOf("Nom");
+  const groupsSheet = ensureAccessGroupsSheet();
+  const groupsData = readSheetAsObjects(groupsSheet);
+  const userId = String(user.Utilisateur_id).trim();
+  const remainingRows = groupsData.rows.filter(
+    (row) => String(row.Utilisateur_id || "").trim() !== userId,
+  );
+  let nextGroupNumber = getNextAccessGroupNumber(groupsData.rows);
 
-  const prenomColumn = headers.indexOf("Prenom");
-
-  const roleColumn = headers.indexOf("Role");
-
-  const actifColumn = headers.indexOf("Actif");
-
-  if (
-    emailColumn === -1 ||
-    nomColumn === -1 ||
-    prenomColumn === -1 ||
-    roleColumn === -1 ||
-    actifColumn === -1
-  ) {
-    throw new Error("La structure de l'onglet Utilisateurs est incorrecte.");
-  }
-
-  /*
-   * Recherche utilisateur existant
-   */
-
-  let existingRow = null;
-
-  for (let i = 1; i < dataRange.length; i++) {
-    const existingEmail = dataRange[i][emailColumn]
-      ? dataRange[i][emailColumn].toString().trim().toLowerCase()
-      : "";
-
-    if (existingEmail === email) {
-      existingRow = i + 1;
-
-      break;
-    }
-  }
-
-  /*
-   * Mise à jour
-   */
-
-  if (existingRow) {
-    sheet.getRange(existingRow, nomColumn + 1).setValue(nom);
-
-    sheet.getRange(existingRow, prenomColumn + 1).setValue(prenom);
-
-    sheet.getRange(existingRow, roleColumn + 1).setValue(role);
-
-    sheet
-      .getRange(existingRow, actifColumn + 1)
-      .setValue(actif ? "Oui" : "Non");
-  } else {
-
-  /*
-   * Nouvel utilisateur
-   */
-    const newRow = new Array(headers.length).fill("");
-
-    newRow[emailColumn] = email;
-
-    newRow[nomColumn] = nom;
-
-    newRow[prenomColumn] = prenom;
-
-    newRow[roleColumn] = role;
-
-    newRow[actifColumn] = actif ? "Oui" : "Non";
-
-    sheet.appendRow(newRow);
-  }
-
-  /*
-   * Synchronisation des permissions
-   * Google Sheets avec le rôle
-   * de l'utilisateur.
-   */
-
-  /**
-   * Synchronise les permissions
-   * Google Drive d'un utilisateur
-   * avec son rôle applicatif.
-   */
-  function syncUserPermissions(email, role, actif) {
-    requireRole("ADMIN");
-
-    email = email.toString().trim().toLowerCase();
-
-    role = role.toString().trim().toUpperCase();
-
-    if (!email) {
-      throw new Error("Adresse email manquante.");
-    }
-
-    if (actif && !ROLE_PERMISSIONS[role]) {
-      throw new Error("Rôle inconnu : " + role);
-    }
-
-    /*
-     * =========================
-     * GOOGLE SHEETS
-     * =========================
-     */
-
-    Object.keys(SPREADSHEETS).forEach((database) => {
-      const fileId = SPREADSHEETS[database];
-
-      const permission = actif
-        ? ROLE_PERMISSIONS[role][database] || "NONE"
-        : "NONE";
-
-      applyFilePermission(fileId, email, permission);
+  groupes.forEach((group) => {
+    remainingRows.push({
+      Utilisateur_groupe_id:
+        "USRGRP-" + String(nextGroupNumber++).padStart(6, "0"),
+      Utilisateur_id: userId,
+      Groupe_code: group,
+      Actif: actif ? "Oui" : "Non",
+      Date_maj: new Date(),
     });
+  });
 
-    /*
-     * =========================
-     * DOSSIER EXTRACTS
-     * =========================
-     *
-     * ADMIN  -> EDITOR
-     * BUREAU -> EDITOR
-     * COACH  -> NONE
-     */
+  writeObjectsToSheet(groupsSheet, groupsData.headers, remainingRows);
 
-    let extractsPermission = "NONE";
-
-    if (actif && (role === "ADMIN" || role === "BUREAU")) {
-      extractsPermission = "EDITOR";
-    }
-
-    applyFolderPermission(DRIVE_FOLDERS.EXTRACTS, email, extractsPermission);
-  }
-
-  /*
-   * Retourne la liste actualisée.
-   */
+  SpreadsheetApp.flush();
 
   return getAccessUsers();
 }
 
+function migrateAccessUsersToGroups() {
+  requirePermission("ACCESS");
+
+  const spreadsheet = getSpreadsheet("ADMINISTRATION");
+  const usersSheet = spreadsheet.getSheetByName("Utilisateurs");
+
+  if (!usersSheet) {
+    throw new Error("Onglet Utilisateurs introuvable.");
+  }
+
+  const usersData = ensureAccessUsersColumns(usersSheet);
+  const groupsSheet = ensureAccessGroupsSheet();
+  const groupsData = readSheetAsObjects(groupsSheet);
+  const existingKeys = new Set(
+    groupsData.rows.map(
+      (row) =>
+        String(row.Utilisateur_id || "").trim() +
+        "|" +
+        String(row.Groupe_code || "")
+          .trim()
+          .toUpperCase(),
+    ),
+  );
+  let nextGroupNumber = getNextAccessGroupNumber(groupsData.rows);
+  let migrated = 0;
+
+  usersData.rows.forEach((user) => {
+    const legacyRole = String(user.Role || "")
+      .trim()
+      .toUpperCase();
+    const userId = String(user.Utilisateur_id || "").trim();
+
+    if (!userId || !ACCESS_GROUPS.includes(legacyRole)) {
+      return;
+    }
+
+    const key = userId + "|" + legacyRole;
+    if (existingKeys.has(key)) {
+      return;
+    }
+
+    groupsData.rows.push({
+      Utilisateur_groupe_id:
+        "USRGRP-" + String(nextGroupNumber++).padStart(6, "0"),
+      Utilisateur_id: userId,
+      Groupe_code: legacyRole,
+      Actif:
+        String(user.Actif || "")
+          .trim()
+          .toLowerCase() === "oui"
+          ? "Oui"
+          : "Non",
+      Date_maj: new Date(),
+    });
+    migrated++;
+  });
+
+  if (migrated > 0) {
+    writeObjectsToSheet(groupsSheet, groupsData.headers, groupsData.rows);
+    SpreadsheetApp.flush();
+  }
+
+  return {
+    success: true,
+    migrated: migrated,
+    users: usersData.rows.length,
+  };
+}
+
 /**
- * Applique une permission
- * à un dossier Google Drive.
+ * Fonctions Drive historiques conservées pour la migration.
  */
 function applyFolderPermission(folderId, email, permission) {
   const folder = DriveApp.getFolderById(folderId);
 
-  /*
-   * EDITOR
-   */
   if (permission === "EDITOR") {
     try {
       folder.removeViewer(email);
-    } catch (error) {
-      console.log("removeViewer dossier ignoré : " + email);
-    }
-
+    } catch (error) {}
     folder.addEditor(email);
-
     return;
   }
 
-  /*
-   * READER
-   */
   if (permission === "READER") {
     try {
       folder.removeEditor(email);
-    } catch (error) {
-      console.log("removeEditor dossier ignoré : " + email);
-    }
-
+    } catch (error) {}
     folder.addViewer(email);
-
     return;
   }
 
-  /*
-   * NONE
-   */
   if (permission === "NONE") {
     try {
       folder.removeEditor(email);
-    } catch (error) {
-      console.log("removeEditor dossier ignoré : " + email);
-    }
-
+    } catch (error) {}
     try {
       folder.removeViewer(email);
-    } catch (error) {
-      console.log("removeViewer dossier ignoré : " + email);
-    }
-
+    } catch (error) {}
     return;
   }
 
   throw new Error("Permission dossier inconnue : " + permission);
 }
 
-/**
- * Test lecture.
- */
-function testAccessUsers() {
-  const users = getAccessUsers();
-
-  console.log(JSON.stringify(users, null, 2));
-}
-
-/**
- * Test écriture.
- *
- * ATTENTION :
- * crée ou modifie réellement
- * cet utilisateur dans le Sheet.
- */
-function testSaveAccessUser() {
-  const users = saveAccessUser({
-    email: "test.usabasket@gmail.com",
-
-    nom: "Test",
-
-    prenom: "Utilisateur",
-
-    role: "COACH",
-
-    actif: true,
-  });
-
-  console.log(JSON.stringify(users, null, 2));
-}
-
-/**
- * Synchronise les permissions Google Sheets
- * d'un utilisateur avec son rôle applicatif.
- */
-function syncUserPermissions(email, role, actif) {
-  requireRole("ADMIN");
-
-  email = email.toString().trim().toLowerCase();
-
-  role = role.toString().trim().toUpperCase();
-
-  if (!email) {
-    throw new Error("Adresse email manquante.");
-  }
-
-  if (actif && !ROLE_PERMISSIONS[role]) {
-    throw new Error("Rôle inconnu : " + role);
-  }
-
-  Object.keys(SPREADSHEETS).forEach((database) => {
-    const fileId = SPREADSHEETS[database];
-
-    /*
-     * Utilisateur inactif :
-     * aucun accès.
-     */
-    const permission = actif
-      ? ROLE_PERMISSIONS[role][database] || "NONE"
-      : "NONE";
-
-    applyFilePermission(fileId, email, permission);
-  });
-}
-
-/**
- * Applique une permission
- * à un fichier Google Drive.
- */
 function applyFilePermission(fileId, email, permission) {
   const file = DriveApp.getFileById(fileId);
 
-  /*
-   * EDITOR
-   */
   if (permission === "EDITOR") {
-    /*
-     * On retire éventuellement
-     * le statut lecteur.
-     */
     try {
       file.removeViewer(email);
-    } catch (error) {
-      console.log("removeViewer ignoré : " + email);
-    }
-
+    } catch (error) {}
     file.addEditor(email);
-
     return;
   }
 
-  /*
-   * READER
-   */
   if (permission === "READER") {
-    /*
-     * On retire éventuellement
-     * le statut éditeur.
-     */
     try {
       file.removeEditor(email);
-    } catch (error) {
-      console.log("removeEditor ignoré : " + email);
-    }
-
+    } catch (error) {}
     file.addViewer(email);
-
     return;
   }
 
-  /*
-   * NONE
-   */
   if (permission === "NONE") {
     try {
       file.removeEditor(email);
-    } catch (error) {
-      console.log("removeEditor ignoré : " + email);
-    }
-
+    } catch (error) {}
     try {
       file.removeViewer(email);
-    } catch (error) {
-      console.log("removeViewer ignoré : " + email);
-    }
-
+    } catch (error) {}
     return;
   }
 
-  throw new Error("Permission inconnue : " + permission);
+  throw new Error("Permission fichier inconnue : " + permission);
 }
 
-function testSyncUserPermissions() {
-  syncUserPermissions("test.usabasket@gmail.com", "COACH", true);
-
-  console.log("Synchronisation terminée.");
+function testAccessUsers() {
+  console.log(JSON.stringify(getAccessUsers(), null, 2));
 }
 
-function testSyncBastienPermissions() {
-  syncUserPermissions("bastien.ferrier@gmail.com", "ADMIN", true);
-
-  console.log("Permissions Bastien synchronisées.");
-}
-
-function testExtractsPermission() {
-  requireRole("ADMIN");
-
-  const email = "bastien.ferrier@gmail.com";
-
-  const folderId = DRIVE_FOLDERS.EXTRACTS;
-
-  const folder = DriveApp.getFolderById(folderId);
-
-  console.log("Dossier : " + folder.getName());
-
-  console.log("ID : " + folder.getId());
-
-  folder.addEditor(email);
-
-  console.log("Ajout éditeur demandé pour : " + email);
-
-  const editors = folder.getEditors().map((user) => user.getEmail());
-
-  console.log("Editeurs du dossier : " + JSON.stringify(editors));
+function testMigrateAccessUsersToGroups() {
+  console.log(JSON.stringify(migrateAccessUsersToGroups(), null, 2));
 }

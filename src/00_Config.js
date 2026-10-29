@@ -32,6 +32,61 @@ const DRIVE_FOLDERS = {
  * READER = lecture seule
  * NONE   = aucun accès
  */
+const APP_GROUP_PERMISSIONS = {
+  ADMIN: [
+    "ADHESIONS_READ",
+    "ADHESIONS_WRITE",
+    "ARBITRAGE_READ",
+    "ARBITRAGE_WRITE",
+    "OTM_READ",
+    "OTM_WRITE",
+    "MATCHS_READ",
+    "MATCHS_WRITE",
+    "IMPORT_FBI_LICENCES",
+    "IMPORT_MATCH",
+    "IMPORT_ASSOCONNECT",
+    "ACCESS",
+    "COMMUNICATION",
+  ],
+
+  COACH: [
+    "MATCHS_READ",
+    "MATCHS_WRITE",
+    "ARBITRAGE_READ",
+    "ARBITRAGE_WRITE",
+    "OTM_READ",
+    "OTM_WRITE",
+  ],
+
+  COORDINATION_OTM: [
+    "OTM_READ",
+    "OTM_WRITE",
+    "MATCHS_READ",
+    "MATCHS_WRITE",
+    "ARBITRAGE_READ",
+  ],
+
+  COORDINATION_ARBITRAGE: [
+    "ARBITRAGE_READ",
+    "ARBITRAGE_WRITE",
+    "MATCHS_READ",
+    "MATCHS_WRITE",
+    "OTM_READ",
+  ],
+};
+
+const ACCESS_GROUPS = Object.keys(APP_GROUP_PERMISSIONS);
+
+const ACCESS_GROUP_SHEET_HEADERS = [
+  "Utilisateur_groupe_id",
+  "Utilisateur_id",
+  "Groupe_code",
+  "Actif",
+  "Date_maj",
+];
+
+const ACCESS_USER_EXTRA_HEADERS = ["Utilisateur_id", "Date_maj"];
+
 const ROLE_PERMISSIONS = {
   ADMIN: {
     ADMINISTRATION: "EDITOR",
@@ -70,6 +125,7 @@ const SHEETS = {
   ARBITRAGE: "Arbitrage",
   OTM: "OTM",
   OTM_EQUIPES: "OTM_Equipes",
+  UTILISATEURS_GROUPES: "Utilisateurs_Groupes",
   SAISONS: "Saisons",
   HISTORIQUE: "Historique",
 };
