@@ -5765,7 +5765,7 @@
                */
 
               matchsData = [];
-
+              populateMatchsDateFilter();
               displayMatchsGrouped([]);
             }
           })
@@ -5869,7 +5869,7 @@
 
     if (!normalized) {
       matchsData = [];
-
+      populateMatchsDateFilter();
       displayMatchs([]);
 
       return;
@@ -5886,26 +5886,75 @@
       .listMatchs(normalized);
   }
 
-  /**
-   * Succès du chargement : on stocke
-   * les données puis on applique les
-   * filtres courants (exigences 3.1,
-   * 3.2).
-   */
   function handleMatchsLoaded(data) {
     matchsData = Array.isArray(data) ? data : [];
 
+    populateMatchsDateFilter();
     filterMatchs();
   }
 
+  function getMatchsDateKey(value) {
+    const date = new Date(String(value || ""));
+
+    if (Number.isNaN(date.getTime())) {
+      return "";
+    }
+
+    const pad = (part) => String(part).padStart(2, "0");
+
+    return [
+      date.getFullYear(),
+      pad(date.getMonth() + 1),
+      pad(date.getDate()),
+    ].join("-");
+  }
+
+  function formatMatchsFilterDate(dateKey) {
+    const date = new Date(dateKey + "T12:00:00");
+
+    if (Number.isNaN(date.getTime())) {
+      return dateKey;
+    }
+
+    return new Intl.DateTimeFormat("fr-FR", {
+      weekday: "short",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(date);
+  }
+
+  function populateMatchsDateFilter() {
+    const select = document.getElementById("matchs-filter-date");
+
+    if (!select) {
+      return;
+    }
+
+    const selectedDates = new Set(
+      Array.from(select.selectedOptions || []).map((option) => option.value),
+    );
+
+    const dates = Array.from(
+      new Set(
+        matchsData.map((match) => getMatchsDateKey(match.Date)).filter(Boolean),
+      ),
+    ).sort();
+
+    select.innerHTML = "";
+
+    dates.forEach((dateKey) => {
+      const option = document.createElement("option");
+      option.value = dateKey;
+      option.textContent = formatMatchsFilterDate(dateKey);
+      option.selected = selectedDates.has(dateKey);
+      select.appendChild(option);
+    });
+  }
+
   /**
-   * Applique les filtres Catégorie
-   * et Lieu sur `matchsData` et
-   * rafraîchit l'affichage.
-   *
-   * Filtrage strictement en mémoire :
-   * aucun rappel serveur n'est
-   * déclenché (exigence 3.1-3.3).
+   * Applique les filtres Catégorie, Lieu et Date(s) sur matchsData.
+   * La sélection de plusieurs dates fonctionne en mémoire, sans appel serveur.
    */
   function filterMatchs() {
     const categorie = String(
@@ -5916,37 +5965,37 @@
       document.getElementById("matchs-filter-lieu")?.value || "",
     ).trim();
 
+    const dateSelect = document.getElementById("matchs-filter-date");
+    const selectedDates = new Set(
+      Array.from(dateSelect?.selectedOptions || []).map(
+        (option) => option.value,
+      ),
+    );
+
     const filtered = matchsData
-
       .filter(function (match) {
-        if (!categorie) {
-          return true;
-        }
-
-        return String(match.Categorie || "").trim() === categorie;
+        return !categorie || String(match.Categorie || "").trim() === categorie;
       })
-
       .filter(function (match) {
-        if (!lieu) {
-          return true;
-        }
-
-        return String(match.Lieu || "").trim() === lieu;
+        return !lieu || String(match.Lieu || "").trim() === lieu;
+      })
+      .filter(function (match) {
+        return (
+          selectedDates.size === 0 ||
+          selectedDates.has(getMatchsDateKey(match.Date))
+        );
       });
 
     displayMatchsGrouped(filtered);
   }
 
   /**
-   * Réinitialise les deux filtres
-   * et réaffiche l'intégralité des
-   * matchs de la saison courante
-   * (exigence 3.3).
+   * Réinitialise les filtres Catégorie, Lieu et Date(s).
    */
   function clearMatchsFilters() {
     const categorie = document.getElementById("matchs-filter-categorie");
-
     const lieu = document.getElementById("matchs-filter-lieu");
+    const dateSelect = document.getElementById("matchs-filter-date");
 
     if (categorie) {
       categorie.value = "";
@@ -5954,6 +6003,12 @@
 
     if (lieu) {
       lieu.value = "";
+    }
+
+    if (dateSelect) {
+      Array.from(dateSelect.options).forEach((option) => {
+        option.selected = false;
+      });
     }
 
     filterMatchs();

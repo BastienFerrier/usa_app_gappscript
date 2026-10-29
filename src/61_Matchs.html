@@ -68,6 +68,22 @@
         </select>
       </div>
 
+      <div class="matchs-filter matchs-filter-date">
+        <label for="matchs-filter-date"> Date(s) </label>
+
+        <select
+          id="matchs-filter-date"
+          multiple
+          size="4"
+          onchange="filterMatchs()"
+          aria-describedby="matchs-filter-date-help"
+        ></select>
+
+        <div id="matchs-filter-date-help" class="matchs-filter-help">
+          Ctrl/Cmd + clic pour sélectionner plusieurs dates.
+        </div>
+      </div>
+
       <div class="matchs-filter matchs-filter-actions">
         <button
           type="button"
