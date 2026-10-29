@@ -6387,19 +6387,22 @@
 
             const legacyScore = String(match.Score || "").trim();
 
-            const score =
-              score1 || score2
+            const hasForfait =
+              isMatchForfait(match.Forfait1) || isMatchForfait(match.Forfait2);
+
+            const score = hasForfait
+              ? "Forfait"
+              : score1 || score2
                 ? (score1 || "—") + " - " + (score2 || "—")
                 : legacyScore || "—";
 
-            const resultStatus = getMatchResultStatus(
-              equipe1,
-              equipe2,
-              score1,
-              score2,
-            );
+            const resultStatus = hasForfait
+              ? ""
+              : getMatchResultStatus(equipe1, equipe2, score1, score2);
 
-            const resultIcon = renderMatchResultIcon(resultStatus);
+            const resultIcon = hasForfait
+              ? ""
+              : renderMatchResultIcon(resultStatus);
 
             const heure = getMatchsDisplayHour(match);
 

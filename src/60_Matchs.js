@@ -840,6 +840,10 @@ function listMatchs(saisonId) {
 
       Score2: scores.score2,
 
+      Forfait1: row.Forfait1 || "",
+
+      Forfait2: row.Forfait2 || "",
+
       Lieu: row.Lieu || "",
 
       Code_eMarque: row.Code_eMarque || "",
@@ -1391,6 +1395,10 @@ function getMatchDetail(matchId) {
       Score1: matchScores.score1,
 
       Score2: matchScores.score2,
+
+      Forfait1: matchRow.Forfait1 || "",
+
+      Forfait2: matchRow.Forfait2 || "",
 
       Lieu: matchRow.Lieu || "",
 
