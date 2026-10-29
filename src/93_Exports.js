@@ -13,7 +13,7 @@ const IMAGE_EXPORT_MAX_BYTES = 8 * 1024 * 1024;
  * forme base64 puis envoyée comme pièce jointe.
  */
 function sendImageExportEmail(payload) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("COMMUNICATION");
 
   payload = payload || {};
 
@@ -21,7 +21,9 @@ function sendImageExportEmail(payload) {
   const subject = String(payload.subject || "").trim();
   const body = String(payload.body || "").trim();
   const fileName = sanitizeImageExportFileName(payload.fileName);
-  const mimeType = String(payload.mimeType || "image/png").trim().toLowerCase();
+  const mimeType = String(payload.mimeType || "image/png")
+    .trim()
+    .toLowerCase();
   const imageBase64 = String(payload.imageBase64 || "").trim();
 
   if (!isValidImageExportEmail(recipient)) {

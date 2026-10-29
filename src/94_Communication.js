@@ -5,7 +5,7 @@
  */
 
 function getCommunicationCategories(saisonId) {
-  requireRole("ADMIN");
+  requirePermission("COMMUNICATION");
 
   const normalizedSaisonId = String(saisonId || "").trim();
 
@@ -25,8 +25,8 @@ function getCommunicationCategories(saisonId) {
 
   const categories = new Set();
 
-  readSheetAsObjects(adhesionsSheet).rows
-    .filter(
+  readSheetAsObjects(adhesionsSheet)
+    .rows.filter(
       (adhesion) =>
         String(adhesion.Saison_id || "").trim() === normalizedSaisonId &&
         String(adhesion.Statut_adhesion || "ACTIVE").trim() !== "ANNULEE",
@@ -45,7 +45,7 @@ function getCommunicationCategories(saisonId) {
 }
 
 function getCommunicationRecipients(saisonId, categories) {
-  requireRole("ADMIN");
+  requirePermission("COMMUNICATION");
 
   const normalizedSaisonId = String(saisonId || "").trim();
 
@@ -88,10 +88,9 @@ function getCommunicationRecipients(saisonId, categories) {
   const assoById = {};
 
   if (importSheet) {
-    readSheetAsObjects(importSheet).rows
-      .filter(
-        (row) =>
-          String(row.Saison_id || "").trim() === normalizedSaisonId,
+    readSheetAsObjects(importSheet)
+      .rows.filter(
+        (row) => String(row.Saison_id || "").trim() === normalizedSaisonId,
       )
       .forEach((row) => {
         const assoId = String(row.Assoconnect_id || "").trim();
@@ -118,8 +117,8 @@ function getCommunicationRecipients(saisonId, categories) {
   const emails = new Set();
   const adhesionIds = [];
 
-  readSheetAsObjects(adhesionsSheet).rows
-    .filter(
+  readSheetAsObjects(adhesionsSheet)
+    .rows.filter(
       (adhesion) =>
         String(adhesion.Saison_id || "").trim() === normalizedSaisonId &&
         String(adhesion.Statut_adhesion || "ACTIVE").trim() !== "ANNULEE" &&
@@ -159,7 +158,9 @@ function getCommunicationRecipients(saisonId, categories) {
 }
 
 function addCommunicationEmail(emails, value) {
-  const normalized = String(value || "").trim().toLowerCase();
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
 
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
     emails.add(normalized);

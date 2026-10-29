@@ -111,6 +111,22 @@
       return;
     }
 
+    if (page === "adhesions" && !currentUserHasPermission("ADHESIONS_READ")) {
+      return;
+    }
+
+    if (page === "arbitrage" && !currentUserHasPermission("ARBITRAGE_READ")) {
+      return;
+    }
+
+    if (page === "otm" && !currentUserHasPermission("OTM_READ")) {
+      return;
+    }
+
+    if (page === "matchs" && !currentUserHasPermission("MATCHS_READ")) {
+      return;
+    }
+
     /*
      * Cache toutes les pages.
      */
@@ -665,6 +681,14 @@
 
   let currentUser = null;
 
+  function currentUserHasPermission(permission) {
+    return Boolean(
+      currentUser &&
+      (currentUser.groups?.includes("ADMIN") ||
+        currentUser.permissions?.includes(permission)),
+    );
+  }
+
   function currentUserHasAnyPermission(...permissions) {
     return permissions.some((permission) =>
       currentUserHasPermission(permission),
@@ -730,6 +754,24 @@
     ) {
       importsMenu.classList.remove("hidden");
     }
+
+    const pagePermissions = {
+      adhesions: "ADHESIONS_READ",
+      arbitrage: "ARBITRAGE_READ",
+      otm: "OTM_READ",
+      matchs: "MATCHS_READ",
+    };
+
+    Object.entries(pagePermissions).forEach(([page, permission]) => {
+      const menuItem = document.querySelector(`[data-page="${page}"]`);
+
+      if (menuItem) {
+        menuItem.classList.toggle(
+          "hidden",
+          !currentUserHasPermission(permission),
+        );
+      }
+    });
   }
 
   function displayCurrentUser(user) {

@@ -62,7 +62,7 @@ function ensureOtmSheets() {
 }
 
 function getOtm(saisonId) {
-  requireAuthorizedUser();
+  requirePermission("OTM_READ");
 
   const normalizedSaisonId = String(saisonId || "").trim();
 
@@ -155,7 +155,7 @@ function getOtm(saisonId) {
 }
 
 function listOtmEquipes(saisonId) {
-  requireAuthorizedUser();
+  requirePermission("OTM_READ");
 
   if (!String(saisonId || "").trim()) {
     throw new Error("La saison est obligatoire.");
@@ -165,7 +165,7 @@ function listOtmEquipes(saisonId) {
 }
 
 function saveOtm(payload) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("OTM_WRITE");
 
   payload = payload || {};
   const saisonId = String(payload.Saison_id || "").trim();

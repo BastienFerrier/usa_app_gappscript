@@ -5,7 +5,7 @@
  */
 
 function getFbiMatchImportFolder(saisonId) {
-  requireRole("ADMIN");
+  requirePermission("IMPORT_MATCH");
 
   const config = IMPORT_FOLDERS.FBI && IMPORT_FOLDERS.FBI[saisonId];
   const folderId = config && config.MATCHS;
@@ -90,7 +90,12 @@ function normalizeFbiMatchHour(value) {
     return Utilities.formatDate(value, Session.getScriptTimeZone(), "HH:mm");
   }
 
-  if (typeof value === "number" && Number.isFinite(value) && value >= 0 && value < 1) {
+  if (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value < 1
+  ) {
     const totalMinutes = Math.round(value * 24 * 60) % (24 * 60);
 
     return (
@@ -103,9 +108,7 @@ function normalizeFbiMatchHour(value) {
   const raw = String(value || "").trim();
   const match = raw.match(/^(\d{1,2})\s*(?::|h|H|\.)\s*(\d{2})/);
 
-  return match
-    ? String(match[1]).padStart(2, "0") + ":" + match[2]
-    : raw;
+  return match ? String(match[1]).padStart(2, "0") + ":" + match[2] : raw;
 }
 
 function normalizeFbiMatchVenue(value) {
@@ -164,7 +167,7 @@ function normalizeFbiMatchRow(rawRow, saisonId, sourceFile) {
 }
 
 function importFbiMatchs(saisonId) {
-  requireRole("ADMIN");
+  requirePermission("IMPORT_MATCH");
 
   const normalizedSaisonId = String(saisonId || "").trim();
 

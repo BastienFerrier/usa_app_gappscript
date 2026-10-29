@@ -9,6 +9,8 @@
  * AssoConnect d'une saison.
  */
 function getAssoConnectImportFolder(saisonId) {
+  requirePermission("IMPORT_ASSOCONNECT");
+
   const folderId = IMPORT_FOLDERS.ASSOCONNECT[saisonId];
 
   if (!folderId) {
@@ -25,7 +27,7 @@ function getAssoConnectImportFolder(saisonId) {
  * dans le dossier d'import AssoConnect.
  */
 function getAssoConnectImportFiles(saisonId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("IMPORT_ASSOCONNECT");
 
   const folder = getAssoConnectImportFolder(saisonId);
 
@@ -55,6 +57,8 @@ function getAssoConnectImportFiles(saisonId) {
  * temporairement en Google Sheets.
  */
 function readXlsxFile(fileId) {
+  requireAuthorizedUser();
+
   const sourceFile = DriveApp.getFileById(fileId);
 
   const sourceName = sourceFile.getName();
@@ -111,7 +115,7 @@ function readXlsxFile(fileId) {
  * Les autres exports restent A_DEFINIR.
  */
 function getAssoConnectExports(saisonId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("IMPORT_ASSOCONNECT");
 
   console.log("Analyse AssoConnect - saison " + saisonId);
 
@@ -200,7 +204,7 @@ function getAssoConnectExports(saisonId) {
  * Prépare les exports AssoConnect.
  */
 function prepareAssoConnectImport(saisonId, files) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("IMPORT_ASSOCONNECT");
 
   if (!saisonId) {
     throw new Error("Saison manquante.");
@@ -846,7 +850,7 @@ function serializeAssoConnectValue(value) {
  * Les lignes des fichiers sélectionnés sont remplacées par le nouvel import.
  */
 function importAssoConnect(saisonId, files) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("IMPORT_ASSOCONNECT");
 
   const prepared = prepareAssoConnectImport(saisonId, files);
 
@@ -1023,7 +1027,7 @@ function normalizeAssoConnectSourceName(value) {
  * adhésions ne sont jamais écrasés.
  */
 function syncAssoConnectToAdhesions(saisonId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("IMPORT_ASSOCONNECT");
 
   if (!saisonId) {
     throw new Error("Saison manquante.");
@@ -1912,7 +1916,7 @@ function testSyncAssoConnectToAdhesions() {
  * initialisée automatiquement si nécessaire.
  */
 function getAdhesions(saisonId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("ADHESIONS_READ");
 
   if (!saisonId) {
     throw new Error("Saison manquante.");
@@ -2346,7 +2350,7 @@ function normalizeSuiviTriState(value) {
  * autorisés peuvent être modifiés.
  */
 function saveAdhesionFollowUp(adhesionId, data) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("ADHESIONS_WRITE");
 
   if (!adhesionId) {
     throw new Error("Identifiant d'adhésion manquant.");
@@ -2544,7 +2548,7 @@ function saveAdhesionFollowUp(adhesionId, data) {
  * l'opération est historisée.
  */
 function setAdhesionStatus(adhesionId, status) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("ADHESIONS_WRITE");
 
   const normalizedAdhesionId = String(adhesionId || "").trim();
 
@@ -3168,7 +3172,7 @@ function testSaveAdhesionFollowUp() {
  * Retourne les dossiers FBI configurés pour une saison.
  */
 function getFbiImportFolders(saisonId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("IMPORT_FBI_LICENCES");
 
   const saisonConfig = IMPORT_FOLDERS.FBI && IMPORT_FOLDERS.FBI[saisonId];
 
@@ -3201,7 +3205,7 @@ function getFbiImportFolders(saisonId) {
  * Liste les fichiers XLSX présents dans les deux dossiers FBI.
  */
 function getFbiImportFiles(saisonId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("IMPORT_FBI_LICENCES");
 
   const folders = getFbiImportFolders(saisonId);
 
@@ -3248,7 +3252,7 @@ function getFbiImportFiles(saisonId) {
  * La saison est supprimée/reconstruite à chaque import.
  */
 function importFbi(saisonId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("IMPORT_FBI_LICENCES");
 
   saisonId = String(saisonId || "").trim();
 
@@ -4467,7 +4471,7 @@ function testFbiSeasonValues() {
  * - Toute incohérence de numéro de licence reçoit A_VERIFIER.
  */
 function syncFbiToAdhesions(saisonId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("IMPORT_FBI_LICENCES");
 
   saisonId = String(saisonId || "").trim();
 

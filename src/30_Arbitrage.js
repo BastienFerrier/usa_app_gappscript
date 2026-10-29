@@ -66,7 +66,7 @@ const ARBITRAGE_CATEGORIES_JOUEURS = [
  */
 
 function getArbitres(saisonId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("ARBITRAGE_READ");
 
   saisonId = String(saisonId || "").trim();
 
@@ -333,7 +333,7 @@ function getArbitres(saisonId) {
  */
 
 function saveArbitreExterneNiveau(arbitreId, niveau) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("ARBITRAGE_WRITE");
 
   arbitreId = String(arbitreId || "").trim();
 
@@ -571,7 +571,7 @@ function testGetArbitres() {
  */
 
 function saveArbitreNiveau(contactId, saisonId, niveau) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("ARBITRAGE_WRITE");
 
   contactId = String(contactId || "").trim();
 
@@ -892,7 +892,7 @@ function getNextArbitreId(arbitrages) {
  */
 
 function saveArbitreExterne(data) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("ARBITRAGE_WRITE");
 
   /*
    * =========================
@@ -1190,7 +1190,7 @@ function formatArbitrageDateForClient(value) {
  */
 
 function updateArbitreExterne(data) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("ARBITRAGE_WRITE");
 
   data = data || {};
 
@@ -1367,7 +1367,7 @@ function updateArbitreExterne(data) {
  */
 
 function deleteArbitreExterne(arbitreId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("ADMIN");
 
   arbitreId = String(arbitreId || "").trim();
 

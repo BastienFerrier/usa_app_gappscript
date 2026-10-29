@@ -451,7 +451,7 @@ function logHistorique(entries) {
  */
 
 function getActiveSaison() {
-  requireAuthorizedUser();
+  requirePermission("MATCHS_READ");
 
   const adhesionSpreadsheet = SpreadsheetApp.openById(SPREADSHEETS.ADHESIONS);
 
@@ -498,7 +498,7 @@ function getActiveSaison() {
  */
 
 function listSaisons() {
-  requireAuthorizedUser();
+  requirePermission("MATCHS_READ");
 
   const adhesionSpreadsheet = SpreadsheetApp.openById(SPREADSHEETS.ADHESIONS);
 
@@ -719,7 +719,7 @@ function buildMatchsAssignmentDetails(rows, directory) {
 }
 
 function listMatchs(saisonId) {
-  requireAuthorizedUser();
+  requirePermission("MATCHS_READ");
 
   const normalizedSaisonId = String(saisonId || "").trim();
 
@@ -942,7 +942,7 @@ function listMatchs(saisonId) {
  */
 
 function getArbitresAffectables(saisonId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("MATCHS_WRITE");
 
   const normalizedSaisonId = String(saisonId || "").trim();
 
@@ -1029,7 +1029,7 @@ function getArbitresAffectables(saisonId) {
  */
 
 function getOtmAffectables(saisonId) {
-  requireAuthorizedUser();
+  requirePermission("MATCHS_READ");
 
   const normalizedSaisonId = String(saisonId || "").trim();
 
@@ -1222,7 +1222,7 @@ function assertPersonneDansVivier(personneId, role, saisonId) {
  */
 
 function getMatchDetail(matchId) {
-  requireAuthorizedUser();
+  requirePermission("MATCHS_READ");
 
   const normalizedMatchId = String(matchId || "").trim();
 
@@ -1489,7 +1489,7 @@ function getMatchDetail(matchId) {
  */
 
 function updateMatch(payload) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("MATCHS_WRITE");
 
   payload = payload || {};
 
@@ -1802,7 +1802,7 @@ function updateMatch(payload) {
  */
 
 function assignAffectation(matchId, personneId, role) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("MATCHS_WRITE");
 
   const normalizedMatchId = String(matchId || "").trim();
 
@@ -2020,7 +2020,7 @@ function assignAffectation(matchId, personneId, role) {
  */
 
 function saveMatchAffectations(matchId, assignments) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("MATCHS_WRITE");
 
   const normalizedMatchId = String(matchId || "").trim();
 
@@ -2220,7 +2220,7 @@ function saveMatchAffectations(matchId, assignments) {
   }
 }
 function removeAffectation(affectationId) {
-  requireRole("ADMIN", "BUREAU");
+  requirePermission("ADMIN");
 
   if (!normalizedAffectationId) {
     throw new Error("L'Affectation_id est obligatoire.");
