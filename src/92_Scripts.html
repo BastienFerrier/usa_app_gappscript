@@ -5924,32 +5924,119 @@
     }).format(date);
   }
 
-  function populateMatchsDateFilter() {
-    const select = document.getElementById("matchs-filter-date");
+  let matchsDateFilterValues = [];
+  let matchsSelectedDates = new Set();
 
-    if (!select) {
+  function getSelectedMatchsDates() {
+    return Array.from(matchsSelectedDates);
+  }
+
+  function updateMatchsDateFilterLabel() {
+    const label = document.getElementById("matchs-filter-date-label");
+
+    if (!label) {
       return;
     }
 
-    const selectedDates = new Set(
-      Array.from(select.selectedOptions || []).map((option) => option.value),
-    );
+    const selected = getSelectedMatchsDates();
 
-    const dates = Array.from(
+    if (selected.length === 0) {
+      label.textContent = "Toutes les dates";
+    } else if (selected.length === 1) {
+      label.textContent = formatMatchsFilterDate(selected[0]);
+    } else {
+      label.textContent = selected.length + " dates sélectionnées";
+    }
+  }
+
+  function toggleMatchsDateFilter(event) {
+    event?.stopPropagation();
+
+    const button = document.getElementById("matchs-filter-date-button");
+    const options = document.getElementById("matchs-filter-date-options");
+
+    if (!button || !options) {
+      return;
+    }
+
+    const isOpen = !options.hidden;
+    options.hidden = isOpen;
+    button.setAttribute("aria-expanded", String(!isOpen));
+  }
+
+  function filterMatchsDateOptions() {
+    const search = String(
+      document.getElementById("matchs-filter-date-search")?.value || "",
+    )
+      .trim()
+      .toLowerCase();
+
+    const selected = new Set(getSelectedMatchsDates());
+    const list = document.getElementById("matchs-filter-date-list");
+
+    if (!list) {
+      return;
+    }
+
+    list.innerHTML = matchsDateFilterValues
+      .filter((dateKey) => {
+        return (
+          !search ||
+          formatMatchsFilterDate(dateKey).toLowerCase().includes(search)
+        );
+      })
+      .map(
+        (dateKey) => `
+          <label class="matchs-date-option">
+            <input
+              type="checkbox"
+              name="matchs-date-filter-option"
+              value="${escapeHtml(dateKey)}"
+              ${selected.has(dateKey) ? "checked" : ""}
+              onchange="onMatchsDateFilterChange(this)"
+            />
+            <span>${escapeHtml(formatMatchsFilterDate(dateKey))}</span>
+          </label>
+        `,
+      )
+      .join("");
+  }
+
+  function onMatchsDateFilterChange(checkbox) {
+    if (checkbox?.checked) {
+      matchsSelectedDates.add(checkbox.value);
+    } else if (checkbox) {
+      matchsSelectedDates.delete(checkbox.value);
+    }
+
+    updateMatchsDateFilterLabel();
+    filterMatchs();
+  }
+
+  function populateMatchsDateFilter() {
+    const previousSelection = new Set(matchsSelectedDates);
+
+    matchsDateFilterValues = Array.from(
       new Set(
         matchsData.map((match) => getMatchsDateKey(match.Date)).filter(Boolean),
       ),
     ).sort();
 
-    select.innerHTML = "";
+    const availableDates = new Set(matchsDateFilterValues);
+    matchsSelectedDates = new Set(
+      Array.from(previousSelection).filter((dateKey) =>
+        availableDates.has(dateKey),
+      ),
+    );
 
-    dates.forEach((dateKey) => {
-      const option = document.createElement("option");
-      option.value = dateKey;
-      option.textContent = formatMatchsFilterDate(dateKey);
-      option.selected = selectedDates.has(dateKey);
-      select.appendChild(option);
-    });
+    const search = document.getElementById("matchs-filter-date-search");
+
+    if (search) {
+      search.value = "";
+    }
+
+    filterMatchsDateOptions();
+    updateMatchsDateFilterLabel();
   }
 
   /**
@@ -5965,12 +6052,7 @@
       document.getElementById("matchs-filter-lieu")?.value || "",
     ).trim();
 
-    const dateSelect = document.getElementById("matchs-filter-date");
-    const selectedDates = new Set(
-      Array.from(dateSelect?.selectedOptions || []).map(
-        (option) => option.value,
-      ),
-    );
+    const selectedDates = new Set(getSelectedMatchsDates());
 
     const filtered = matchsData
       .filter(function (match) {
@@ -5995,7 +6077,6 @@
   function clearMatchsFilters() {
     const categorie = document.getElementById("matchs-filter-categorie");
     const lieu = document.getElementById("matchs-filter-lieu");
-    const dateSelect = document.getElementById("matchs-filter-date");
 
     if (categorie) {
       categorie.value = "";
@@ -6005,14 +6086,24 @@
       lieu.value = "";
     }
 
-    if (dateSelect) {
-      Array.from(dateSelect.options).forEach((option) => {
-        option.selected = false;
-      });
-    }
-
+    matchsSelectedDates.clear();
+    filterMatchsDateOptions();
+    updateMatchsDateFilterLabel();
     filterMatchs();
   }
+
+  document.addEventListener("click", (event) => {
+    const filter = document.querySelector(".matchs-date-filter");
+    const options = document.getElementById("matchs-filter-date-options");
+    const button = document.getElementById("matchs-filter-date-button");
+
+    if (!filter || !options || !button || filter.contains(event.target)) {
+      return;
+    }
+
+    options.hidden = true;
+    button.setAttribute("aria-expanded", "false");
+  });
 
   function formatMatchsGroupDate(iso) {
     const value = String(iso || "").trim();

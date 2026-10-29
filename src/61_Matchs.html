@@ -68,19 +68,32 @@
         </select>
       </div>
 
-      <div class="matchs-filter matchs-filter-date">
-        <label for="matchs-filter-date"> Date(s) </label>
+      <div class="matchs-date-filter">
+        <button
+          id="matchs-filter-date-button"
+          type="button"
+          class="matchs-date-filter-button"
+          aria-expanded="false"
+          onclick="toggleMatchsDateFilter(event)"
+        >
+          <span id="matchs-filter-date-label">Toutes les dates</span>
+          <span class="matchs-date-filter-chevron" aria-hidden="true">▾</span>
+        </button>
 
-        <select
-          id="matchs-filter-date"
-          multiple
-          size="4"
-          onchange="filterMatchs()"
-          aria-describedby="matchs-filter-date-help"
-        ></select>
-
-        <div id="matchs-filter-date-help" class="matchs-filter-help">
-          Ctrl/Cmd + clic pour sélectionner plusieurs dates.
+        <div
+          id="matchs-filter-date-options"
+          class="matchs-date-filter-options"
+          hidden
+        >
+          <input
+            id="matchs-filter-date-search"
+            class="matchs-date-filter-search"
+            type="search"
+            placeholder="Rechercher une date..."
+            oninput="filterMatchsDateOptions()"
+            onclick="event.stopPropagation()"
+          />
+          <div id="matchs-filter-date-list"></div>
         </div>
       </div>
 

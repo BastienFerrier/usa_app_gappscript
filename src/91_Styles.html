@@ -5090,15 +5090,86 @@
     opacity: 1;
   }
 
-  .matchs-filter-date select {
+  .matchs-date-filter {
+    position: relative;
     min-width: 220px;
-    min-height: 96px;
-    padding: 6px 8px;
   }
 
-  .matchs-filter-help {
-    margin-top: 5px;
+  .matchs-date-filter-button {
+    width: 100%;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 11px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: white;
+    color: #333;
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .matchs-date-filter-button:hover,
+  .matchs-date-filter-button[aria-expanded="true"] {
+    border-color: #e0081a;
+  }
+
+  .matchs-date-filter-chevron {
     color: #777;
-    font-size: 11px;
+    font-size: 15px;
+  }
+
+  .matchs-date-filter-options {
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 0;
+    left: 0;
+    z-index: 30;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
+  }
+
+  .matchs-date-filter-options[hidden] {
+    display: none;
+  }
+
+  .matchs-date-filter-search {
+    width: 100%;
+    margin-bottom: 6px;
+  }
+
+  .matchs-date-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 7px;
+    border-radius: 4px;
+    color: #333;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .matchs-date-option:hover {
+    background: #f5f6f8;
+  }
+
+  .matchs-date-option input {
+    accent-color: #e0081a;
+  }
+
+  @media (max-width: 700px) {
+    .matchs-date-filter {
+      width: 100%;
+      min-width: 0;
+    }
   }
 </style>
