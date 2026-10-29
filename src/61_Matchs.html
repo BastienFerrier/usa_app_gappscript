@@ -97,6 +97,17 @@
         </div>
       </div>
 
+      <label class="matchs-unplayed-toggle">
+        <input
+          id="matchs-filter-unplayed"
+          type="checkbox"
+          onchange="filterMatchs()"
+          aria-label="Afficher uniquement les matchs non joués"
+        />
+        <span class="matchs-unplayed-toggle-track" aria-hidden="true"></span>
+        <span class="matchs-unplayed-toggle-label">Matchs non joués</span>
+      </label>
+
       <div class="matchs-filter matchs-filter-actions">
         <button
           type="button"

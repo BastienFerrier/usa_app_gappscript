@@ -5166,6 +5166,72 @@
     accent-color: #e0081a;
   }
 
+  .matchs-unplayed-toggle {
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    align-self: center;
+    padding: 0 4px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #666;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .matchs-unplayed-toggle input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .matchs-unplayed-toggle-track {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #c7cbd1;
+    transition: background 0.15s ease;
+  }
+
+  .matchs-unplayed-toggle-track::after {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+    content: "";
+    transition: transform 0.15s ease;
+  }
+
+  .matchs-unplayed-toggle input:checked + .matchs-unplayed-toggle-track {
+    background: #e0081a;
+  }
+
+  .matchs-unplayed-toggle input:checked + .matchs-unplayed-toggle-track::after {
+    transform: translateX(14px);
+  }
+
+  .matchs-unplayed-toggle:focus-within {
+    color: #a51d15;
+  }
+
+  .matchs-unplayed-toggle:focus-within .matchs-unplayed-toggle-track {
+    outline: 2px solid rgba(224, 8, 26, 0.2);
+    outline-offset: 2px;
+  }
+
   @media (max-width: 700px) {
     .matchs-date-filter {
       width: 100%;

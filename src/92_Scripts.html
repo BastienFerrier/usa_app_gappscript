@@ -6039,9 +6039,29 @@
     updateMatchsDateFilterLabel();
   }
 
+  function isMatchForfait(value) {
+    const normalized = String(value || "")
+      .trim()
+      .toUpperCase();
+
+    return ["OUI", "YES", "TRUE", "1", "FORFAIT"].includes(normalized);
+  }
+
+  function isMatchPlayed(match) {
+    const score1 = String(match.Score1 || "").trim();
+    const score2 = String(match.Score2 || "").trim();
+    const legacyScore = String(match.Score || "").trim();
+    const hasCompleteScore = Boolean(score1 && score2);
+    const hasLegacyScore = Boolean(legacyScore && /\d/.test(legacyScore));
+    const hasForfait =
+      isMatchForfait(match.Forfait1) || isMatchForfait(match.Forfait2);
+
+    return hasCompleteScore || hasLegacyScore || hasForfait;
+  }
+
   /**
-   * Applique les filtres Catégorie, Lieu et Date(s) sur matchsData.
-   * La sélection de plusieurs dates fonctionne en mémoire, sans appel serveur.
+   * Applique les filtres Catégorie, Lieu, Date(s) et état du match.
+   * La sélection fonctionne uniquement en mémoire.
    */
   function filterMatchs() {
     const categorie = String(
@@ -6053,6 +6073,9 @@
     ).trim();
 
     const selectedDates = new Set(getSelectedMatchsDates());
+    const onlyUnplayed = Boolean(
+      document.getElementById("matchs-filter-unplayed")?.checked,
+    );
 
     const filtered = matchsData
       .filter(function (match) {
@@ -6060,6 +6083,9 @@
       })
       .filter(function (match) {
         return !lieu || String(match.Lieu || "").trim() === lieu;
+      })
+      .filter(function (match) {
+        return !onlyUnplayed || !isMatchPlayed(match);
       })
       .filter(function (match) {
         return (
@@ -6084,6 +6110,12 @@
 
     if (lieu) {
       lieu.value = "";
+    }
+
+    const unplayed = document.getElementById("matchs-filter-unplayed");
+
+    if (unplayed) {
+      unplayed.checked = false;
     }
 
     matchsSelectedDates.clear();
